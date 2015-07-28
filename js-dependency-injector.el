@@ -27,7 +27,7 @@
 
 (defvar js-inject-use-projectile nil
   "Whether or not to use the projectile project files when searching for dependency.")
-(when (require 'projectile)
+(when (require 'projectile nil 'noerror)
   (setq js-inject-use-projectile t))
 
 ;;; Group Definitions
