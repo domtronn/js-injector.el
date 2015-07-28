@@ -65,6 +65,7 @@ require paths."
 			
 			(inject-dependency require-path-list class-name-list t))))
 
+;; Main function definitions
 (defun require-node-module-at-point ()
   "Inject a node modules defined in package.json at point.
 This will search up from the current directory to find the package.json and
@@ -351,7 +352,10 @@ It assosciates each file name to a list of relative file paths"
     (define-key map (kbd "i") #'inject-dependency-at-point)
 		(define-key map (kbd "r") #'require-dependency-at-point)
     (define-key map (kbd "C-r") #'require-node-module-at-point)
-    map)
+    (define-key map (kbd "s") #'sort-dependencies)
+    (define-key map (kbd "u") #'update-dependencies)
+		(define-key map (kbd "l") #'indent-require-block)
+			map)
   "Keymap for Js-Injector commands after `js-injector-keymap-prefix'.")
 (fset 'js-injector-command-map js-injector-command-map)
 
@@ -361,15 +365,15 @@ It assosciates each file name to a list of relative file paths"
     map)
   "Keymap for Projectile mode.")
 
-(define-minor-mode js-injector-mode
+(define-minor-mode js-injector-minor-mode
   "Minor mode to help with js dependency injection.
 
-When called interactively, toggle `js-injector-mode'.  With prefix
-ARG, enable `js-injector-mode' if ARG is positive, otherwise disable
+When called interactively, toggle `js-injectorminor-mode'.  With prefix
+ARG, enable `js-injectorminor-mode' if ARG is positive, otherwise disable
 it.
 
-When called from Lisp, enable `js-injector-mode' if ARG is omitted,
-nil or positive.  If ARG is `toggle', toggle `js-injector-mode'.
+When called from Lisp, enable `js-injectorminor-mode' if ARG is omitted,
+nil or positive.  If ARG is `toggle', toggle `js-injectorminor-mode'.
 Otherwise behave as if called interactively.
 
 \\{projectile-mode-map}"
