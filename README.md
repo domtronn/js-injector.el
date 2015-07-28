@@ -79,3 +79,54 @@ Will expand the path to the path relative to the current file like this
 ```javascript
 var class = require('../../folder/classFileName');
 ```
+
+### `inject-dependency-at-point` ###
+
+Given you're in a project file of a [`projectable`](https://github.com/domtronn/projectable.el) project and in a javascript class that uses `require.js` that looks something like this.
+
+```javascript
+require([
+  'project/myclass'
+], function (MyClass) {
+...
+  var class = new |Image();
+...
+})
+```
+_(`|` is the caret)_
+
+
+Calling `inject-dependency-at-point` over the `Image` class definition will require the class _(if it exists in the project)_ like this
+
+```javascript
+require([
+  'project/myclass',
+  'project/path/to/image'
+], function (MyClass, Image) {
+...
+  var class = new |Image();
+...
+})
+```
+
+If you have configured the [`projectable`](https://github.com/domtronn/projectable.el) `project.json` with some libraries, like this
+```json
+"libs": { "id":"library", "dir":"path/to/library"}
+```
+And try to include a class which exists in _both_ the library and the root project, the user will be prompted with the two choices, e.g.
+```
+project/path/to/image
+library/path/to/image
+```
+Then, selecting one of these will inject it as above, so if the user chose the `image` class in the library it would expand to something like this
+```javascript
+require([
+  'project/myclass',
+  'library/path/to/image'
+], function (MyClass, Image) {
+...
+  var class = new |Image();
+...
+})
+```
+
