@@ -37,7 +37,7 @@ Key Binding | Command & Effect
 
 # Examples #
 
-### `require-node-module-at-point` ###
+## `require-node-module-at-point` ##
 
 Given working on a node package with the following `package.json`
 
@@ -51,13 +51,8 @@ Given working on a node package with the following `package.json`
 ...
 ```
 
-Calling the `require-node-module-at-point` will prompt the user with
-```
-express
-request
-package-name
-```
-Selecting one of the options will expand into
+Calling the `require-node-module-at-point` will prompt the user with `express, request, package-name`.
+Selecting one of the options will expand point into
 ```javascript
 var express = require('express');
 ```
@@ -66,37 +61,32 @@ Also, pacakges with dashes in their name _(e.g. `package-name` above)_ will be s
 var packageName = require('package-name');
 ```
 
-### `require-dependency-at-point` ###
+## `require-dependency-at-point` ##
 
-Given you're in a project file of a [`projectable`](https://github.com/domtronn/projectable.el) project
+Given that you're in a project file of a [`projectable`](https://github.com/domtronn/projectable.el) project
 
-Calling the `require-dependency-at-point` over a file name like this
+Calling the `require-dependency-at-point` over the `classFileName` below,
+will expand the path to the path relative to the current file like this
 ```javascript
-var class = require('|classFileName');
-```
-_(`|` is the caret)_
-Will expand the path to the path relative to the current file like this
-```javascript
+var class = require('classFileName');
 var class = require('../../folder/classFileName');
 ```
 
-### `inject-dependency-at-point` ###
+## `inject-dependency-at-point` ##
 
-Given you're in a project file of a [`projectable`](https://github.com/domtronn/projectable.el) project and in a javascript class that uses `require.js` that looks something like this.
+Given that you're in a project file of a [`projectable`](https://github.com/domtronn/projectable.el) project and in a javascript class that uses `require.js` blocks that looks something like this.
 
 ```javascript
 require([
   'project/myclass'
 ], function (MyClass) {
 ...
-  var class = new |Image();
+  var class = new Image();
 ...
 })
 ```
-_(`|` is the caret)_
 
-
-Calling `inject-dependency-at-point` over the `Image` class definition will require the class _(if it exists in the project)_ like this
+Calling `inject-dependency-at-point` over the `new Image()` will require the class _(if it exists in the project)_ like this
 
 ```javascript
 require([
@@ -104,7 +94,7 @@ require([
   'project/path/to/image'
 ], function (MyClass, Image) {
 ...
-  var class = new |Image();
+  var class = new Image();
 ...
 })
 ```
@@ -113,12 +103,8 @@ If you have configured the [`projectable`](https://github.com/domtronn/projectab
 ```json
 "libs": { "id":"library", "dir":"path/to/library"}
 ```
-And try to include a class which exists in _both_ the library and the root project, the user will be prompted with the two choices, e.g.
-```
-project/path/to/image
-library/path/to/image
-```
-Then, selecting one of these will inject it as above, so if the user chose the `image` class in the library it would expand to something like this
+And try to include a class which exists in _both_ the library and the root project, the user will be prompted with the two choices, e.g. `project/path/to/image, library/path/to/image `
+Selecting one of these will inject the selected one as above, so if the user chose the `image` class in the library it would expand to something like this
 ```javascript
 require([
   'project/myclass',
