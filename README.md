@@ -20,14 +20,20 @@ Then enable it in your `js-mode` using
 
 If you enable `js-injector-minor-mode` you will have access to the following keybindings:
 
-Key Binding | Command | Effect 
--------- | --- | ---
-`C-c C-j i` | `inject-dependency-at-point` | Try to inject the `class` under point from require modules _(requires a `projectable` project)_
-`C-c C-j s` | `sort-dependencies` | Arrange the require block in alphabetical order
-`C-c C-j u` | `update-dependencies` | Update all the dependencies in the requires function callback and update the require block _(requires a `projectable` project)_
-`C-c C-j u` | `indent-require-block` | Indents the require block according to mode
-`C-c C-j r` | `require-dependency-at-point` | Try to expand the `class` as a relative path at point _(requires a `projectable` project)_
-`C-c C-j C-r` | `require-node-module-at-point` | Prompt for node modules defined in your `package.json` and require
+Key Binding | Command & Effect
+-------- | --- 
+`C-c C-j i` | `inject-dependency-at-point`
+| Try to inject the `class` under point from require modules _(requires a `projectable` project)_
+`C-c C-j s` | `sort-dependencies`
+| Arrange the require block in alphabetical order
+`C-c C-j u` | `update-dependencies`
+| Update all the dependencies in the requires function callback and update the require block _(requires a `projectable` project)_
+`C-c C-j u` | `indent-require-block`
+| Indents the require block according to mode
+`C-c C-j r` | `require-dependency-at-point`
+| Try to expand the `class` as a relative path at point _(requires a `projectable` project)_
+`C-c C-j C-r` | `require-node-module-at-point`
+| Prompt for node modules defined in your `package.json` and require
 
 # Examples #
 
