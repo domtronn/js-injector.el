@@ -25,6 +25,8 @@
 
 ;;; Code:
 
+(require 'dash)
+
 (defvar js-inject-use-projectile nil
   "Whether or not to use the projectile project files when searching for dependency.")
 (when (require 'projectile nil 'noerror)
@@ -105,6 +107,20 @@ to include."
             (insert (format "var %s = require(%s%s%s);"
                             (sanitise result) quote-char result quote-char)))
         (message "No node modules found in current project")))))
+
+(defun require-relative-module-at-point ()
+  "Inject a module relative to the current file from a project."
+  (interactive)
+  (let* ((qc (get-quote-char))
+         (modules (--filter (string-match "\.js$" (cadr it))
+                            (--map (cons (file-name-sans-extension (car it)) (cdr it)) projectable-file-alist)))
+         (module (ido-completing-read "Require: " modules))
+         (relative-modules (--map (file-relative-name it (file-name-directory (buffer-file-name))) (cdr (assoc module modules))))
+         (relative-module (if (> (length relative-modules) 1)
+                              (ido-completing-read "Module: " relative-modules)
+                            (car relative-modules)))
+         (result (file-name-sans-extension (if (string-match "^[a-zA-Z]" relative-module) (concat "./" relative-module) relative-module))))
+    (insert (format "var %s = require(%s%s%s);" (sanitise module) qc result qc ))))
 
 (defun sanitise (s)
   "Return a sanitised string S."
