@@ -40,6 +40,15 @@
 
 (defvar js-inject-use-dev-dependencies nil)
 
+(defcustom js-injector-node-lib-alist
+	'(("ramda" . "R")
+		("lodash" . "_")
+		("supertest" . "request")
+		("q" . "Q"))
+	"Alist of node libraries and their 'nice' require names."
+	:group 'js-injector
+	:type '(alist :key-type string :value-type string))
+
 (defcustom js-injector-keymap-prefix (kbd "C-c C-j")
   "Js-Injector keymap prefix."
   :group 'js-injector
@@ -91,7 +100,7 @@ require paths."
                     (when js-inject-use-dev-dependencies "devDependencies"))))
         result))))
 
-(defun require-node-module-at-point ()
+(defun require-node-module ()
   "Inject a node modules defined in package.json at point.
 This will search up from the current directory to find the package.json and
 pull out the dependencies - by default this will just use DEPENDENCIES, but can
@@ -103,12 +112,12 @@ to include."
            (node-modules (get-node-modules)))
       (if node-modules
           (let ((result (completing-read "Require Node Module:" node-modules))
-                (quote-char (get-quote-char)))
-            (insert (format "var %s = require(%s%s%s);"
-                            (sanitise result) quote-char result quote-char)))
+                (qc (get-quote-char)))
+            (list (nice-node-name result)
+									(format "%s%s%s" qc result qc)))
         (message "No node modules found in current project")))))
 
-(defun require-relative-module-at-point ()
+(defun require-relative-module ()
   "Inject a module relative to the current file from a project."
   (interactive)
   (let* ((qc (get-quote-char))
@@ -120,7 +129,12 @@ to include."
                               (ido-completing-read "Module: " relative-modules)
                             (car relative-modules)))
          (result (file-name-sans-extension (if (string-match "^[a-zA-Z]" relative-module) (concat "./" relative-module) relative-module))))
-    (insert (format "var %s = require(%s%s%s);" (sanitise module) qc result qc ))))
+    (list (sanitise module)
+					(format "%s%s%s" qc result qc ))))
+
+(defun nice-node-name (package)
+  "Return the sanitised nice node name for PACKAGE."
+	(sanitise (cdr (assoc package js-injector-node-lib-alist))))
 
 (defun sanitise (s)
   "Return a sanitised string S."
