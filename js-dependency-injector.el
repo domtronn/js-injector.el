@@ -26,6 +26,7 @@
 ;;; Code:
 
 (require 'dash)
+(require 'js-injector-node)
 
 (defvar js-inject-use-projectile nil
   "Whether or not to use the projectile project files when searching for dependency.")
@@ -37,17 +38,6 @@
   "Manage the minor mode to allow javascript injection."
   :group 'tools
   :group 'convenience)
-
-(defvar js-inject-use-dev-dependencies nil)
-
-(defcustom js-injector-node-lib-alist
-	'(("ramda" . "R")
-		("lodash" . "_")
-		("supertest" . "request")
-		("q" . "Q"))
-	"Alist of node libraries and their 'nice' require names."
-	:group 'js-injector
-	:type '(alist :key-type string :value-type string))
 
 (defcustom js-injector-keymap-prefix (kbd "C-c C-j")
   "Js-Injector keymap prefix."
@@ -75,66 +65,6 @@ require paths."
             (mapcar #'(lambda (x) (cadr x)) require-class-alist))
 
       (inject-dependency require-path-list class-name-list t))))
-
-;; Main function definitions
-(defun get-node-modules ()
-  "Get a list of node packages defined in package.json."
-  (let ((package-json (locate-dominating-file
-                       (file-name-directory (buffer-file-name))
-                       "package.json")))
-    (when package-json
-      (let* ((json-object-type 'hash-table)
-             (json-contents (with-temp-buffer
-                              (insert-file-contents
-                               (format "%s/package.json" package-json))
-                              (buffer-string)))
-             (json-hash (json-read-from-string json-contents))
-             (result (list)))
-        (mapc
-         (lambda (arg)
-           (maphash
-            (lambda (key value) (setq result (-distinct (append result (list key)))))
-            (gethash arg json-hash)))
-         (-non-nil (list
-                    "dependencies"
-                    (when js-inject-use-dev-dependencies "devDependencies"))))
-        result))))
-
-(defun require-node-module ()
-  "Inject a node modules defined in package.json at point.
-This will search up from the current directory to find the package.json and
-pull out the dependencies - by default this will just use DEPENDENCIES, but can
-also use DEVDEPENDENCIES - and then prompt the user for the module they want
-to include."
-  (interactive)
-  (save-excursion
-    (let* ((popup-point (point))
-           (node-modules (get-node-modules)))
-      (if node-modules
-          (let ((result (completing-read "Require Node Module:" node-modules))
-                (qc (get-quote-char)))
-            (list (nice-node-name result)
-									(format "%s%s%s" qc result qc)))
-        (message "No node modules found in current project")))))
-
-(defun require-relative-module ()
-  "Inject a module relative to the current file from a project."
-  (interactive)
-  (let* ((qc (get-quote-char))
-         (modules (--filter (string-match "\.js$" (cadr it))
-                            (--map (cons (file-name-sans-extension (car it)) (cdr it)) projectable-file-alist)))
-         (module (ido-completing-read "Require: " modules))
-         (relative-modules (--map (file-relative-name it (file-name-directory (buffer-file-name))) (cdr (assoc module modules))))
-         (relative-module (if (> (length relative-modules) 1)
-                              (ido-completing-read "Module: " relative-modules)
-                            (car relative-modules)))
-         (result (file-name-sans-extension (if (string-match "^[a-zA-Z]" relative-module) (concat "./" relative-module) relative-module))))
-    (list (sanitise module)
-					(format "%s%s%s" qc result qc ))))
-
-(defun nice-node-name (package)
-  "Return the sanitised nice node name for PACKAGE."
-	(sanitise (cdr (assoc package js-injector-node-lib-alist))))
 
 (defun sanitise (s)
   "Return a sanitised string S."
