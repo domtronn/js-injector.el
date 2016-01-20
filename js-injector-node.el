@@ -88,7 +88,13 @@ to include."
 									(format "%s%s%s" qc result qc)))
         (message "No node modules found in current project")))))
 
-(defun require-relative-module ()
+(defun require-relative-module-at-point ()
+  (let ((region (bounds-of-thing-at-point 'symbol))
+				(result (require-relative-module (thing-at-point 'symbol))))
+		(replace-region (car region) (cdr region)
+										(format "var %s = require(%s);" (car result) (cadr result)))))
+
+(defun require-relative-module (&optional m)
   "Require a module relative to the current file from a project."
   (interactive)
   (let* ((qc (get-quote-char))
