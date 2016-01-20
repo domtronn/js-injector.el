@@ -92,9 +92,9 @@ to include."
   "Require a module relative to the current file from a project."
   (interactive)
   (let* ((qc (get-quote-char))
-         (modules (--filter (string-match "\.js$" (cadr it))
+         (modules (--filter (string-match "\.js[on]\\{0,2\\}$" (cadr it))
                             (--map (cons (file-name-sans-extension (car it)) (cdr it)) projectable-file-alist)))
-         (module (ido-completing-read "Require: " modules))
+         (module (or m (completing-read "Require: " modules)))
          (relative-modules (--map (file-relative-name it (file-name-directory (buffer-file-name))) (cdr (assoc module modules))))
          (relative-module (if (> (length relative-modules) 1)
                               (ido-completing-read "Module: " relative-modules)
