@@ -1,0 +1,374 @@
+;;; js-injector.el --- Inject paths to JS classes
+
+;; Copyright (C) 2014  Dominic Charlesworth <dgc336@gmail.com>
+
+;; Author: Dominic Charlesworth <dgc336@gmail.com>
+;; Keywords: convenience, abbrev, tools
+
+;; This program is free software; you can redistribute it and/or
+;; modify it under the terms of the GNU General Public License
+;; as published by the Free Software Foundation; either version 3
+;; of the License, or (at your option) any later version.
+
+;; This program is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU General Public License for more details.
+
+;; You should have received a copy of the GNU General Public License
+;; along with this program. If not, see <http://www.gnu.org/licenses/>.
+
+;;; Commentary:
+
+;; This package allows you to perform the equivalent of dependency
+;; injection for javascript files
+
+;;; Code:
+
+(require 'dash)
+(require 's)
+
+(require 'js-injector-lib)
+
+(defvar js-inject-use-projectile nil
+  "Whether or not to use the projectile project files when searching for dependency.")
+
+;;; Group Definitions
+(defgroup js-injector nil
+  "Manage the minor mode to allow javascript injection."
+  :group 'tools
+  :group 'convenience)
+
+(defcustom js-injector-keymap-prefix (kbd "C-c C-j")
+  "Js-Injector keymap prefix."
+  :group 'js-injector
+  :type 'key-sequence)
+
+(defvar js-injector-define-regexp "require\.def(\\|require(\\|define(")
+
+(defcustom js-injector-get-relative-func 'js-injector--get-jpop-files-alist
+    "The function to get the current projects file from."
+    :type '(radio
+          (const :tag "Get the files from JPoP project" js-injector--get-jpop-files-alist)
+          (const :tag "Get the files from Projectile project" js-injector--get-projectile-files-alist))
+  :group 'js-injector)
+
+(defcustom js-injector-get-requirejs-func '(:files js-injector--get-jpop-requirejs-alist :config js-injector--get-jpop-requirejs-config)
+    "The function to get the requirejs file alist from."
+    :type '(radio
+						(const :tag "Use the requirejs mapped files and config from JPoP project"
+									 (:files js-injector--get-jpop-requirejs-alist :config js-injector--get-jpop-requirejs-config))
+						(const :tag "Use the relative project files from JPoP project"
+									 (:files js-injector--get-jpop-relative-requirejs-alist :config js-injector--get-jpop-relative-requirejs-config))
+						(const :tag "Use the relative project files from Projectile project"
+									 (:files js-injector--get-projectile-relative-requirejs-alist :config js-injector--get-projectile-relative-requirejs-config)))
+  :group 'js-injector)
+
+;;; Get definitions
+;;  Functions to get various bits of information required for dependencies
+
+(defalias 'js-injector-get-requirejs-config 'jpop-get-requirejs-config)
+
+(defun js-injector-get-dependency-alist ()
+	"Make dependency alist using `js-injector-get-requirejs-files-alist`.
+It assossciates each file name to a list of locations of that file."
+	(let ((requirejs-alist (funcall (plist-get js-injector-get-requirejs-func :config)))
+				(requirejs-files-alist (funcall (plist-get js-injector-get-requirejs-func :files)))
+				(result (list)))
+		(mapc
+		 (lambda (project)
+			 (let* ((requirejs-id (car project))
+							(requirejs-path (expand-file-name (cdr (assoc requirejs-id requirejs-alist)))))
+				 (mapc (lambda (file-alist)
+								 (when (equal "js" (file-name-extension (car file-alist)))
+									 (let* ((filename (file-name-sans-extension (car file-alist)))
+													(result-match (assoc filename result))
+													(normalised-paths
+													 (--map
+														(file-name-sans-extension (replace-regexp-in-string requirejs-path requirejs-id it))
+														(cdr file-alist))))
+										 (if result-match
+												 (setf (cdr result-match) (append (cdr result-match) normalised-paths))
+											 (add-to-list 'result (cons filename normalised-paths)))
+										 )))
+							 (cdr project))))
+		 requirejs-files-alist)
+		result))
+
+
+(defun js-injector-get-relative-dependency-alist ()
+	"Construct the relative dependency alist from project-files.
+It assossciates each file name to a list of locations relative to
+the current file."
+	(let ((project-files (funcall js-injector-get-relative-func))
+				(containing-dir (file-name-directory (buffer-file-name))))
+		(-non-nil
+		 (cl-loop for file-alist in project-files
+							for file = (car file-alist)
+							for locations = (cdr file-alist)
+			collect
+			(when (string-match "\.js[on]\\{0,2\\}$" file)
+				(cons (file-name-sans-extension file)
+							(--map (file-relative-name it containing-dir) locations)))))))
+
+;;; Navigation definitions
+;;  Functions to navigate around the requirejs file
+(defun js-injector--goto-define ()
+	"Navigate to the define block."
+	(goto-char (point-min))
+	(search-forward-regexp js-injector-define-regexp)
+	(skip-chars-forward " \n\t"))
+
+(defun js-injector--goto-import-block ()
+	"Navigate to the define import block."
+	(js-injector--goto-define)
+	(search-forward "["))
+
+(defun js-injector--goto-import-function ()
+  "Navigate to the define import function."
+	(js-injector--goto-import-block)
+	(search-forward "function"))
+
+(defun js-injector--goto-import-function-params ()
+  "Navigate to the parameters of the import function."
+	(js-injector--goto-import-function)
+	(search-forward "("))
+
+(defun js-injector--goto-import-block-end ()
+  "Get the define import array."
+	(js-injector--goto-import-block)
+	(search-forward "]"))
+
+;;; Get Define definitions
+;;  Functions to get the contents of the require thing
+
+(defun js-injector--get-node-contents (node)
+	"Get the contents of a JS2 NODE."
+  (let ((beg (js2-node-abs-pos node))
+				(end (js2-node-abs-end node)))
+		(buffer-substring-no-properties beg end)))
+
+(defun js-injector--get-module-name ()
+  "Get the define module name.  Return nil if no name is given."
+	(save-excursion
+		(js-injector--goto-define)
+		(unless (js2-array-node-p (js2-node-at-point))
+			(js-injector--get-node-contents (js2-node-at-point)))))
+
+(defun js-injector--get-import-block ()
+  "Get the define import array."
+	(save-excursion
+		(let ((beg (js-injector--goto-import-block))
+					(end (- (search-forward "]") 1)))
+			(s-trim (s-collapse-whitespace (buffer-substring-no-properties beg end))))))
+
+(defun js-injector--get-import-block-as-list ()
+  "Get the define import function parameters."
+	(split-string (js-injector--get-import-block) ", "))
+
+(defun js-injector--get-import-function-params ()
+  "Get the define import function parameters."
+	(save-excursion
+		(let ((beg (js-injector--goto-import-function-params))
+					(end (- (search-forward ")") 1)))
+			(buffer-substring-no-properties beg end))))
+
+(defun js-injector--get-import-function-params-as-list ()
+  "Get the define import function parameters."
+	(split-string (js-injector--get-import-function-params) ", "))
+
+;;; Injector definitions
+;;  Functions that inject dependencies into the current file
+
+(defun js-injector--insert-module-name (module &optional pos f)
+  "Inject MODULE into the function params at index POS.
+
+F should be a function to inject an item into a list somehow.  It
+defaults to `-insert-at`."
+	(js-injector--goto-import-function-params)
+	(let* ((beg (point))
+				 (end (- (search-forward ")") 1))
+				 (modules (js-injector--get-import-function-params-as-list))
+				 
+				 (pos (or pos (length modules)))
+				 (f (or f '-insert-at)))
+		
+		(js-injector-replace-region
+		 beg end (mapconcat 'identity (funcall f pos module modules) ", "))))
+
+(defun js-injector--import-module-name (import &optional pos f)
+  "Import IMPORT into the import block at index POS.
+
+F should be a function to inject an item into a list.  It
+defaults to `-insert-at`."
+	(js-injector--goto-import-block)
+	(let* ((beg (point))
+				 (end (- (search-forward "]") 1))
+				 (imports (js-injector--get-import-block-as-list))
+				 
+				 (pos (or pos (length imports)))
+				 (f (or f '-insert-at)))
+		
+		(js-injector-replace-region
+		 beg end
+		 (format "\n%s\n" (mapconcat 'identity (funcall f pos import imports) ",\n"))))
+	(js-injector--format-import))
+
+;;; Format definitions
+;;  Functions that format certain areas of the module
+(defun js-injector--format-import ()
+	"Format the import block."
+  (js-injector--goto-import-block)
+	(let* ((node (js2-node-at-point))
+				 (beg (+ 1 (js2-node-abs-pos node)))
+				 (end (- (js2-node-abs-end node) 1)))
+		(indent-region beg end)))
+
+(defun js-injector--format-function-params ()
+	"Format the function params to wrap."
+	(js-injector--goto-import-function-params)
+	(let ((beg (point))
+				(end (search-forward ")")))
+		(fill-region beg end)
+		(indent-region beg end)))
+
+;;; Interactive Injector functions
+
+(defun js-injector--replace-module (module import-module)
+  "Replace the current MODULE and its IMPORT-MODULE in the file at its position."
+	(let ((pos (-elem-index module (js-injector--get-import-function-params-as-list))))
+		(js-injector--insert-module-name module pos '-replace-at)
+		(js-injector--import-module-name import-module pos '-replace-at)))
+
+(defun js-injector--insert-module (module import-module)
+	"Insert MODULE and its IMPORT-MODULE into file."
+  (js-injector--insert-module-name module)
+	(js-injector--import-module-name import-module))
+
+(defun js-injector--remove-module (module)
+	"Remove MODULE and its import from the file."
+	(message "Module: %s" module)
+	(let ((pos (-elem-index module (js-injector--get-import-function-params-as-list))))
+		(js-injector--insert-module-name nil pos '(lambda (n x list) (-remove-at n list)))
+		(js-injector--import-module-name nil pos '(lambda (n x list) (-remove-at n list)))))
+
+(defun js-injector-import (module &optional prompt-name popup-point)
+	"Inject MODULE as dependency.
+This function will look for MODULE it in the dependncy list.
+If it exists, it will append it to the function list
+and add the require path, if it is already used it will update the
+current dependency.  If it does not exist, do nothing and print to the
+minibuffer.
+
+If PROMPT-NAME is non-nil, this function will prompt the user for
+the name they would like to import the module as.
+
+If POPUP-POINT is non-nil, use this value as the position to
+place the popup menu, else use the current value of `point`"
+	(let* ((dependency-alist (js-injector-get-dependency-alist))
+				 (dependency-match (assoc-string module dependency-alist t))
+				 (dependencies (cdr dependency-match))
+
+				 (qc (js-injector--get-quote-char))
+				 (import-module (if (> (length dependencies) 1)
+														(popup-menu* dependencies :point (or popup-point (point)))
+													(car dependencies)))
+				 
+				 (imported-modules (js-injector--get-import-function-params-as-list))
+				 (import-name (when prompt-name (read-string "Import as: "))))
+		
+		(unless import-module
+			(error "No module named '%s'" module))
+
+		(if (member module (js-injector--get-import-function-params-as-list))
+				(js-injector--replace-module (or import-name module) (format "%s%s%s" qc import-module qc))
+			(js-injector--insert-module (or import-name module) (format "%s%s%s" qc import-module qc)))))
+
+(defun js-injector-import-module-at-point (&optional pfx)
+	"Inject module at point.
+When given a PFX argument, will prompt user for the module name to be imported as."
+  (interactive "P")
+	(save-excursion (js-injector-import (word-at-point) pfx)))
+
+(defun js-injector-import-module (&optional pfx)
+	"Inject module at point.
+When called with a PFX argument, this will prompt for the import name."
+  (interactive "P")
+	(let* ((modules (-map 'car (js-injector-get-dependency-alist)))
+				 (module (s-upper-camel-case (completing-read "Import module: " modules))))
+		(save-excursion (js-injector-import module pfx))))
+
+(defun js-injector-remove-module (&optional m)
+  "Remove a module M or prompt for a module."
+	(interactive)
+	(let* ((modules (js-injector--get-import-function-params-as-list))
+				 (module (or m (completing-read "Remove module: " modules))))
+		(save-excursion (js-injector--remove-module module))))
+
+(defun js-injector-remove-unused-modules ()
+	"Remove all unused modules in a file."
+  (interactive)
+	(let* ((modules (js-injector--get-import-function-params-as-list))
+				 (unused-modules (--filter (eq (s-count-matches (format "\\b%s\\b" it)
+																												(buffer-substring (js-injector--goto-import-function-params) (point-max)))
+																			 1) modules)))
+		(-map 'js-injector-remove-module unused-modules)))
+
+(defun js-injector-update-dependencies ()
+	"Run through each current import module and reimport them.
+Prompting user for the paths to the modules they want to import."
+  (interactive)
+	(let ((popup-point (point)))
+		(save-excursion
+			(--map (js-injector-import it nil popup-point) (js-injector--get-import-function-params-as-list)))))
+
+(defun js-injector-sort-dependencies ()
+	"Sort the dependencies alphabetically."
+  (interactive)
+	(save-excursion
+		(let* ((zipped-modules
+						(--sort (string< (car it) (car other))
+										(-zip-pair (js-injector--get-import-block-as-list)
+															 (js-injector--get-import-function-params-as-list))))
+					 (sorted-imports (-map 'car zipped-modules))
+					 (sorted-modules (-map 'cdr zipped-modules)))
+			(--map-indexed (js-injector--insert-module-name it it-index '-replace-at) sorted-modules)
+			(--map-indexed (js-injector--import-module-name it it-index '-replace-at) sorted-imports))))
+
+(defvar js-injector-command-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "i") #'inject-dependency-at-point)
+    (define-key map (kbd "r") #'require-dependency-at-point)
+    (define-key map (kbd "C-r") #'require-node-module-at-point)
+    (define-key map (kbd "s") #'sort-dependencies)
+    (define-key map (kbd "u") #'update-dependencies)
+    (define-key map (kbd "l") #'indent-require-block)
+    map)
+  "Keymap for Js-Injector commands after `js-injector-keymap-prefix'.")
+(fset 'js-injector-command-map js-injector-command-map)
+
+(defvar js-injector-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map js-injector-keymap-prefix 'js-injector-command-map)
+    map)
+  "Keymap for Projectile mode.")
+
+(define-minor-mode js-injector-minor-mode
+  "Minor mode to help with js dependency injection.
+
+When called interactively, toggle `js-injector-minor-mode'.  With prefix
+ARG, enable `js-injector-minor-mode' if ARG is positive, otherwise disable
+it.
+
+When called from Lisp, enable `js-injector-minor-mode' if ARG is omitted,
+nil or positive.  If ARG is `toggle', toggle `js-injector-minor-mode'.
+Otherwise behave as if called interactively.
+
+\\{projectile-mode-map}"
+  :lighter "js-i"
+  :keymap js-injector-mode-map
+  :group 'js-injector
+  :require 'js-injector)
+
+(provide 'js-injector)
+;;; js-injector.el ends here

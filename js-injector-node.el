@@ -25,110 +25,186 @@
 ;;; Code:
 
 (require 'dash)
+(require 's)
+
+(require 'js-injector-lib)
 
 ;;; Group Definitions
-(defvar js-inject-use-dev-dependencies nil)
+(defvar js-injector-node-use-dev t
+	"Whether to read the dev dependencies for requiring node modules.")
+(defvar js-injector-node-executable (executable-find "node")
+	"Executable path for `node`.")
+
 (defcustom js-injector-node-lib-alist
 	'(("ramda" . "R")
 		("lodash" . "_")
+		("react" . "React")
 		("supertest" . "request")
 		("q" . "Q"))
 	"Alist of node libraries and their 'nice' require names."
 	:group 'js-injector
 	:type '(alist :key-type string :value-type string))
 
-;; Main function definitions
-(defun get-node-modules (&optional get-dev-dependencies)
-  "Get a list of node packages defined in package.json."
-  (let ((package-json (locate-dominating-file
-                       (file-name-directory (buffer-file-name))
-                       "package.json")))
-    (when package-json
-      (let* ((json-object-type 'hash-table)
-             (json-contents (with-temp-buffer
-                              (insert-file-contents
-                               (format "%s/package.json" package-json))
-                              (buffer-string)))
-             (json-hash (json-read-from-string json-contents))
-             (result (list)))
-        (mapc
-         (lambda (arg)
-           (maphash
-            (lambda (key value) (setq result (-distinct (append result (list key)))))
-            (gethash arg json-hash)))
-         (-non-nil (list
-                    "dependencies"
-                    (when get-dev-dependencies "devDependencies"))))
-        result))))
+;;; Get definitions
+;;  Functions to get various bits of information required for dependencies
+(defun js-injector-node-get-node-modules (&optional get-dev-dependencies)
+  "Get a list of node packages defined in `package.json`.
+When called with GET-DEV-DEPENDENCIES, this function will return
+a distinct list of both the dev and production dependencies."
+  (let ((package-dir
+				 (locate-dominating-file default-directory "package.json")))
+		
+		(unless package-dir
+			(error "Could not find a package.json in the current project"))
+		
+		(let* ((json-object-type 'alist)
+					 (json-alist (json-read-file (format "%s/package.json" package-dir))))
+			
+			(-distinct
+			 (-flatten-n 1
+				(--map
+				 (-map 'car (cdr (assoc it json-alist)))
+				 (append '(dependencies)
+								 (when get-dev-dependencies '(devDependencies)))))))))
 
-(defun require-node-module ()
-	"Get node modules based on `js-injector-use-dev-dependncies`."
-	(interactive)
-  (require--node-module js-inject-use-dev-dependencies))
+(defun js-injector-node-get-node-module-alist ()
+  "Get a list of node modules associated with their nice names."
+	(let ((node-modules (js-injector-node-get-node-modules)))
+		(--map (cons it (list (symbol-name it))) node-modules)))
 
-(defun require-node-module-dev ()
-	"Get node modules override for dev dependencies."
-	(interactive)
-  (require--node-module t))
+(defun js-injector-node--nice-name (name)
+  "Return the nice node NAME defined in `js-injector-node-lib-alist`."
+	(or (cdr (assoc name js-injector-node-lib-alist)) name))
 
-(defun require--node-module (&optional get-dev-dependencies)
-  "Require a node modules defined in package.json at point.
-This will search up from the current directory to find the package.json and
-pull out the dependencies - by default this will just use DEPENDENCIES, but can
-also use DEVDEPENDENCIES when GET-DEV-DEPENDENCIES is present
-- and then prompt the user for the module they want
-to include."
-  (save-excursion
-    (let* ((popup-point (point))
-           (node-modules (get-node-modules get-dev-dependencies)))
-      (if node-modules
-          (let ((result (completing-read "Require Node Module:" node-modules))
-                (qc (get-quote-char)))
-            (list (nice-node-name result)
-									(format "%s%s%s" qc result qc)))
-        (message "No node modules found in current project")))))
+(defun js-injector-node--var-decl ()
+  "Check whether you're in a variable declaration.
+If you are, return the variable name currently being defined."
+	(let* ((line (buffer-substring-no-properties
+								(line-beginning-position) (line-end-position)))
+				 (full-match (s-match "\\(var\\|let\\|const\\)\\s-+\\([a-z0-9_]*\\)" line))
+				 (partial-match (s-match "\\(var\\|let\\|const\\)" line)))
+		(cond
+		 (full-match (caddr full-match))
+		 (partial-match t))))
 
-(defun require-relative-module-at-point ()
-  (let ((region (bounds-of-thing-at-point 'symbol))
-				(result (require-relative-module (thing-at-point 'symbol))))
-		(replace-region (car region) (cdr region)
-										(format "var %s = require(%s);" (car result) (cadr result)))))
+;;; Version calculation definitions
+;;  Functions to calculate the version of node in use in a project
 
-(defun require-relative-module (&optional m)
-  "Require a module relative to the current file from a project."
-  (interactive)
-  (let* ((qc (get-quote-char))
-         (modules (--filter (string-match "\.js[on]\\{0,2\\}$" (cadr it))
-                            (--map (cons (file-name-sans-extension (car it)) (cdr it)) projectable-file-alist)))
-         (module (or m (completing-read "Require: " modules)))
-         (relative-modules (--map (file-relative-name it (file-name-directory (buffer-file-name))) (cdr (assoc module modules))))
-         (relative-module (if (> (length relative-modules) 1)
-                              (ido-completing-read "Module: " relative-modules)
-                            (car relative-modules)))
-         (result (file-name-sans-extension (if (string-match "^[a-zA-Z]" relative-module) (concat "./" relative-module) relative-module))))
-    (list (sanitise module)
-					(format "%s%s%s" qc result qc ))))
+(defun js-injector-node-version>4 ()
+  "Guess the node version being used in the project.
 
-(defun nice-node-name (package)
-  "Return the sanitised nice node name for PACKAGE."
-	(sanitise (if (assoc package js-injector-node-lib-alist)
-								(cdr (assoc package js-injector-node-lib-alist))
-							package)))
+This will try to read it from the `package.json` engine field,
+  otherwise fall back to reading from `.node-version`, or finally
+  executing `node --version`."
+	(let ((node-version (or (js-injector-node--package-version)
+													(js-injector-node--dot-version)
+													(js-injector-node--version))))
+		
+		(version<= "4" node-version)))
 
-(defun sanitise (s)
-  "Return a sanitised string S."
-  (with-temp-buffer
-    (insert s)
-    (goto-char (point-min))
-    (while (re-search-forward "-\\(.\\)" nil t)
-      (replace-match (capitalize (match-string 1))))
-    (buffer-string)))
+(defun js-injector-node--package-version ()
+	"Read the node version from the `package.json` file."
+  (let ((package-dir (locate-dominating-file default-directory "package.json")))
+		(unless package-dir (error "Project does not contain a `package.json`"))
+		(let* ((json-object-type 'alist)
+					 (json-alist (json-read-file (format "%s/package.json" package-dir)))
+					 (engines (cdr (assoc 'engines json-alist))))
+			(js-injector--parse-version (cdr (assoc 'node engines))))))
 
-(defun get-quote-char ()
-  "Get the majority quote character used in a file."
-  (if (> (count-matches "\"" (point-min) (point-max))
-         (count-matches "'" (point-min) (point-max)))
-      "\"" "'"))
+(defun js-injector-node--dot-version ()
+  "Read the node version from the `.node-version` file."
+	(let ((node-version-dir (locate-dominating-file default-directory ".node-version")))
+		(unless node-version-dir (error "Project does not contain a `.node-version`"))
+		(with-temp-buffer
+			(insert-file-contents (format "%s/.node-version" node-version-dir))
+			(s-trim (s-collapse-whitespace (buffer-string))))))
+
+(defun js-injector-node--version ()
+  "Find the node version by running `node --version`."
+	(unless js-injector-node-executable (error "You do not have `node` executable available"))
+	(js-injector--parse-version
+	 (shell-command-to-string (format "%s --version" js-injector-node-executable))))
+
+;;; Navigation definitions
+;;  Functions to navigate around the requirejs file
+
+(defun js-injector-node--goto-first-import ()
+  "Navigate to the first import/require in the file."
+	(goto-char (point-min))
+	(search-forward-regexp "['\"]use strict[\"'].*?[;]\\{0,1\\}" nil t)
+	(skip-chars-forward " \n\t")
+	(search-forward-regexp "require(\\|import" nil t)
+	(beginning-of-line))
+			
+;;; Interactive Injector functions
+
+(defun js-injector-node-import (module &optional prompt-name pos)
+	"Import MODULE as a dependency relative to current file.
+This function will look for MODULE in a dependency list relative
+to the current file and add it as an import/require statement at
+the top of the file.
+
+If PROMPT-NAME is non-nil, this function will prompt the user for
+the name they would like to import the module as.
+
+If POS is non-nil, inject the dependency at position."
+  (let* ((dependency-alist (append
+														(js-injector-get-relative-dependency-alist)
+														(ignore-errors (js-injector-node-get-node-module-alist))))
+				 (dependency-match (assoc-string module dependency-alist t))
+				 (dependencies (cdr dependency-match))
+				 
+				 (import-module (if (> (length dependencies) 1)
+														(popup-menu* dependencies :point (point))
+													(car dependencies)))
+				 (import-name (when prompt-name (read-string "Import as: "))))
+
+		(unless import-module
+			(error "No module named '%s'" module))
+
+		(js-injector-node--inject-module (file-name-sans-extension import-module)
+										 (or import-name (js-injector-node--nice-name module))
+										 pos)))
+
+(defun js-injector-node--inject-module (module module-name &optional pos)
+	"Inject MODULE into the node file as MODULE-NAME.
+If POS is non-nil, goto position before injecting module."
+	(if pos
+			(progn (goto-char pos)
+						 (delete-region (line-beginning-position) (1+ (line-end-position))))
+		(js-injector-node--goto-first-import))
+	(let ((qc (js-injector--get-quote-char)))
+		(insert
+		 (format
+			(if (js-injector-node-version>4) "import %s from %s%s%s;\n" "var %s = require(%s%s%s);\n")
+			module-name qc module qc))))
+
+(defun js-injector-node-import-module-at-point (&optional pfx)
+	"Import the module at point.
+When called with a PFX argument, this will prompt the user for
+what name they want to import the file as."
+  (interactive "P")
+	(let* ((module (word-at-point))
+				 (in-var-decl (js-injector-node--in-var-decl))
+				 (pos (and in-var-decl (line-beginning-position))))
+		
+		(if (and in-var-decl (equal "" in-var-decl))
+				(js-injector-node-import-module pfx)
+			(save-excursion (js-injector-node-import module pfx pos)))))
+
+(defun js-injector-node-import-module (&optional pfx)
+	"Import a module in the project.
+When called with a PFX argument, this will prompt the user for
+what name they want to import the file as."
+  (interactive "P")
+	(let* ((modules (-map 'car (append
+															(js-injector-get-relative-dependency-alist)
+															(ignore-errors (js-injector-node-get-node-module-alist)))))
+				 (module (completing-read "Import module: " modules))
+				 (in-var-decl (js-injector-node--in-var-decl))
+				 (pos (and in-var-decl (line-beginning-position))))
+		
+			(save-excursion (js-injector-node-import module pfx pos))))
 
 (provide 'js-injector-node)
 ;;; js-injector-node.el ends here
