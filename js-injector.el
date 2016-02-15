@@ -29,20 +29,31 @@
 (require 's)
 
 (require 'js-injector-lib)
+(require 'js-injector-node)
 
-(defvar js-inject-use-projectile nil
-  "Whether or not to use the projectile project files when searching for dependency.")
+;; common custom prefixes
+(defcustom js-injector-sub-keymap-prefix (kbd "C-c j")
+  "Js-Injector keymap prefix."
+  :group 'js-injector
+  :type 'key-sequence)
+
+(defcustom js-injector-sup-keymap-prefix (kbd "C-c C-j")
+  "Js-Injector keymap prefix."
+  :group 'js-injector
+  :type 'key-sequence)
+
+(defvar js-injector-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map js-injector-sub-keymap-prefix 'js-injector-sub-command-map)
+		(define-key map js-injector-sup-keymap-prefix 'js-injector-sup-command-map)
+    map)
+  "Keymap for Projectile mode.")
 
 ;;; Group Definitions
 (defgroup js-injector nil
   "Manage the minor mode to allow javascript injection."
   :group 'tools
   :group 'convenience)
-
-(defcustom js-injector-keymap-prefix (kbd "C-c C-j")
-  "Js-Injector keymap prefix."
-  :group 'js-injector
-  :type 'key-sequence)
 
 (defvar js-injector-define-regexp "require\.def(\\|require(\\|define(")
 
@@ -247,7 +258,6 @@ defaults to `-insert-at`."
 
 (defun js-injector--remove-module (module)
 	"Remove MODULE and its import from the file."
-	(message "Module: %s" module)
 	(let ((pos (-elem-index module (js-injector--get-import-function-params-as-list))))
 		(js-injector--insert-module-name nil pos '(lambda (n x list) (-remove-at n list)))
 		(js-injector--import-module-name nil pos '(lambda (n x list) (-remove-at n list)))))
@@ -284,12 +294,14 @@ place the popup menu, else use the current value of `point`"
 				(js-injector--replace-module (or import-name module) (format "%s%s%s" qc import-module qc))
 			(js-injector--insert-module (or import-name module) (format "%s%s%s" qc import-module qc)))))
 
+;;;###autoload
 (defun js-injector-import-module-at-point (&optional pfx)
 	"Inject module at point.
 When given a PFX argument, will prompt user for the module name to be imported as."
   (interactive "P")
 	(save-excursion (js-injector-import (word-at-point) pfx)))
 
+;;;###autoload
 (defun js-injector-import-module (&optional pfx)
 	"Inject module at point.
 When called with a PFX argument, this will prompt for the import name."
@@ -298,6 +310,7 @@ When called with a PFX argument, this will prompt for the import name."
 				 (module (s-upper-camel-case (completing-read "Import module: " modules))))
 		(save-excursion (js-injector-import module pfx))))
 
+;;;###autoload
 (defun js-injector-remove-module (&optional m)
   "Remove a module M or prompt for a module."
 	(interactive)
@@ -305,6 +318,7 @@ When called with a PFX argument, this will prompt for the import name."
 				 (module (or m (completing-read "Remove module: " modules))))
 		(save-excursion (js-injector--remove-module module))))
 
+;;;###autoload
 (defun js-injector-remove-unused-modules ()
 	"Remove all unused modules in a file."
   (interactive)
@@ -314,6 +328,7 @@ When called with a PFX argument, this will prompt for the import name."
 																			 1) modules)))
 		(-map 'js-injector-remove-module unused-modules)))
 
+;;;###autoload
 (defun js-injector-update-dependencies ()
 	"Run through each current import module and reimport them.
 Prompting user for the paths to the modules they want to import."
@@ -322,6 +337,7 @@ Prompting user for the paths to the modules they want to import."
 		(save-excursion
 			(--map (js-injector-import it nil popup-point) (js-injector--get-import-function-params-as-list)))))
 
+;;;###autoload
 (defun js-injector-sort-dependencies ()
 	"Sort the dependencies alphabetically."
   (interactive)
@@ -335,23 +351,25 @@ Prompting user for the paths to the modules they want to import."
 			(--map-indexed (js-injector--insert-module-name it it-index '-replace-at) sorted-modules)
 			(--map-indexed (js-injector--import-module-name it it-index '-replace-at) sorted-imports))))
 
-(defvar js-injector-command-map
+(defvar js-injector-sub-command-map
   (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "i") #'inject-dependency-at-point)
-    (define-key map (kbd "r") #'require-dependency-at-point)
-    (define-key map (kbd "C-r") #'require-node-module-at-point)
-    (define-key map (kbd "s") #'sort-dependencies)
-    (define-key map (kbd "u") #'update-dependencies)
-    (define-key map (kbd "l") #'indent-require-block)
+    (define-key map (kbd "i") 'js-injector-import-module)
+    (define-key map (kbd "k") 'js-injector-remove-module)
+    (define-key map (kbd "u") 'js-injector-update-dependencies)
+    (define-key map (kbd "l") 'js-injector-sort-dependencies)
+    (define-key map (kbd "r") 'js-injector-node-import-module)
     map)
-  "Keymap for Js-Injector commands after `js-injector-keymap-prefix'.")
-(fset 'js-injector-command-map js-injector-command-map)
+  "Keymap for Js-Injector commands after `js-injector-sub-keymap-prefix'.")
+(fset 'js-injector-sub-command-map js-injector-sub-command-map)
 
-(defvar js-injector-mode-map
+(defvar js-injector-sup-command-map
   (let ((map (make-sparse-keymap)))
-    (define-key map js-injector-keymap-prefix 'js-injector-command-map)
+    (define-key map (kbd "i") 'js-injector-import-module-at-point)
+    (define-key map (kbd "k") 'js-injector-remove-unused-modules)
+    (define-key map (kbd "r") 'js-injector-node-import-module-at-point)
     map)
-  "Keymap for Projectile mode.")
+  "Keymap for Js-Injector commands after `js-injector-sup-keymap-prefix'.")
+(fset 'js-injector-sup-command-map js-injector-sup-command-map)
 
 (define-minor-mode js-injector-minor-mode
   "Minor mode to help with js dependency injection.

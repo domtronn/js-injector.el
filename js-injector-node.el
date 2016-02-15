@@ -179,19 +179,21 @@ If POS is non-nil, goto position before injecting module."
 			(if (js-injector-node-version>4) "import %s from %s%s%s;\n" "var %s = require(%s%s%s);\n")
 			module-name qc module qc))))
 
+;;;###autoload
 (defun js-injector-node-import-module-at-point (&optional pfx)
 	"Import the module at point.
 When called with a PFX argument, this will prompt the user for
 what name they want to import the file as."
   (interactive "P")
 	(let* ((module (word-at-point))
-				 (in-var-decl (js-injector-node--in-var-decl))
-				 (pos (and in-var-decl (line-beginning-position))))
+				 (var-decl (js-injector-node--var-decl))
+				 (pos (and var-decl (line-beginning-position))))
 		
-		(if (and in-var-decl (equal "" in-var-decl))
+		(if (and var-decl (equal "" var-decl))
 				(js-injector-node-import-module pfx)
 			(save-excursion (js-injector-node-import module pfx pos)))))
 
+;;;###autoload
 (defun js-injector-node-import-module (&optional pfx)
 	"Import a module in the project.
 When called with a PFX argument, this will prompt the user for
@@ -201,8 +203,8 @@ what name they want to import the file as."
 															(js-injector-get-relative-dependency-alist)
 															(ignore-errors (js-injector-node-get-node-module-alist)))))
 				 (module (completing-read "Import module: " modules))
-				 (in-var-decl (js-injector-node--in-var-decl))
-				 (pos (and in-var-decl (line-beginning-position))))
+				 (var-decl (js-injector-node--var-decl))
+				 (pos (and var-decl (line-beginning-position))))
 		
 			(save-excursion (js-injector-node-import module pfx pos))))
 
