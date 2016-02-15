@@ -351,7 +351,7 @@ Prompting user for the paths to the modules they want to import."
 			(--map-indexed (js-injector--insert-module-name it it-index '-replace-at) sorted-modules)
 			(--map-indexed (js-injector--import-module-name it it-index '-replace-at) sorted-imports))))
 
-(defvar js-injector-sub-command-map
+(defvar js-injector-sup-command-map
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "i") 'js-injector-import-module)
     (define-key map (kbd "k") 'js-injector-remove-module)
@@ -359,17 +359,17 @@ Prompting user for the paths to the modules they want to import."
     (define-key map (kbd "l") 'js-injector-sort-dependencies)
     (define-key map (kbd "r") 'js-injector-node-import-module)
     map)
-  "Keymap for Js-Injector commands after `js-injector-sub-keymap-prefix'.")
-(fset 'js-injector-sub-command-map js-injector-sub-command-map)
+  "Keymap for Js-Injector commands after `js-injector-sup-keymap-prefix'.")
+(fset 'js-injector-sup-command-map js-injector-sup-command-map)
 
-(defvar js-injector-sup-command-map
+(defvar js-injector-sub-command-map
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "i") 'js-injector-import-module-at-point)
     (define-key map (kbd "k") 'js-injector-remove-unused-modules)
     (define-key map (kbd "r") 'js-injector-node-import-module-at-point)
     map)
-  "Keymap for Js-Injector commands after `js-injector-sup-keymap-prefix'.")
-(fset 'js-injector-sup-command-map js-injector-sup-command-map)
+  "Keymap for Js-Injector commands after `js-injector-sub-keymap-prefix'.")
+(fset 'js-injector-sub-command-map js-injector-sub-command-map)
 
 (define-minor-mode js-injector-minor-mode
   "Minor mode to help with js dependency injection.
