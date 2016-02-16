@@ -294,7 +294,8 @@ place the popup menu, else use the current value of `point`"
                           (car dependencies)))
          
          (imported-modules (js-injector--get-import-function-params-as-list))
-         (import-name (when prompt-name (read-string "Import as: "))))
+         (import-name (when (and import-module prompt-name)
+                        (read-string "Import as: "))))
     
     (unless import-module
       (error "No module named '%s'" module))
@@ -392,7 +393,7 @@ on module namings."
 
 (defvar js-injector-sup-command-map
   (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "C-j") 'js-injector-clever-import-module)
+    (define-key map (kbd "C-i") 'js-injector-clever-import-module)
     (define-key map (kbd "i") 'js-injector-import-module)
     (define-key map (kbd "k") 'js-injector-remove-module)
     (define-key map (kbd "u") 'js-injector-update-dependencies)
