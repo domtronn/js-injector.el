@@ -81,5 +81,9 @@ e.g.  `>=0.10.3 ~0.12` etc"
     (mapcar (lambda (config) (cons (plist-get config :id) (plist-get config :dir))) configs)))
 
 (provide 'js-injector-lib)
+;; Local Variables:
+;; indent-tabs-mode: nil
+;; eval: (nameless-mode 1)
+;; eval: (flycheck-mode 0)
+;; End:
 ;;; js-injector-lib.el ends here
-

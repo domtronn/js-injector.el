@@ -209,4 +209,8 @@ what name they want to import the file as."
 			(save-excursion (js-injector-node-import module pfx pos))))
 
 (provide 'js-injector-node)
+;; Local Variables:
+;; indent-tabs-mode: nil
+;; eval: (nameless-mode 1)
+;; End:
 ;;; js-injector-node.el ends here
