@@ -76,7 +76,7 @@ a distinct list of both the dev and production dependencies."
   "Return the nice node NAME defined in `js-injector-node-lib-alist`."
 	(or (cdr (assoc name js-injector-node-lib-alist)) name))
 
-(defun js-injector-node--var-decl ()
+(defun js-injector-node--var-decl? ()
   "Check whether you're in a variable declaration.
 If you are, return the variable name currently being defined."
 	(let* ((line (buffer-substring-no-properties
@@ -186,7 +186,7 @@ When called with a PFX argument, this will prompt the user for
 what name they want to import the file as."
   (interactive "P")
 	(let* ((module (word-at-point))
-				 (var-decl (js-injector-node--var-decl))
+				 (var-decl (js-injector-node--var-decl?))
 				 (pos (and var-decl (line-beginning-position))))
 		
 		(if (and var-decl (equal "" var-decl))
@@ -203,7 +203,7 @@ what name they want to import the file as."
 															(js-injector-get-relative-dependency-alist)
 															(ignore-errors (js-injector-node-get-node-module-alist)))))
 				 (module (completing-read "Import module: " modules))
-				 (var-decl (js-injector-node--var-decl))
+				 (var-decl (js-injector-node--var-decl?))
 				 (pos (and var-decl (line-beginning-position))))
 		
 			(save-excursion (js-injector-node-import module pfx pos))))

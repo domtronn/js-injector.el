@@ -309,6 +309,7 @@ place the popup menu, else use the current value of `point`"
   "Inject module at point.
 When given a PFX argument, will prompt user for the module name to be imported as."
   (interactive "P")
+  (js-injector--guard)
   (save-excursion (js-injector-import (word-at-point) pfx) t))
 
 ;;;###autoload
@@ -316,6 +317,7 @@ When given a PFX argument, will prompt user for the module name to be imported a
   "Inject module at point.
 When called with a PFX argument, this will prompt for the import name."
   (interactive "P")
+  (js-injector--guard)
   (let* ((modules (-map 'car (js-injector-get-dependency-alist)))
          (module (s-upper-camel-case (completing-read "Import module: " modules))))
     (save-excursion (js-injector-import module pfx))))
@@ -324,6 +326,7 @@ When called with a PFX argument, this will prompt for the import name."
 (defun js-injector-remove-module (&optional m)
   "Remove a module M or prompt for a module."
   (interactive)
+  (js-injector--guard)
   (let* ((modules (js-injector--get-import-function-params-as-list))
          (module (or m (completing-read "Remove module: " modules))))
     (save-excursion (js-injector--remove-module module))))
@@ -332,6 +335,7 @@ When called with a PFX argument, this will prompt for the import name."
 (defun js-injector-remove-unused-modules ()
   "Remove all unused modules in a file."
   (interactive)
+  (js-injector--guard)
   (let* ((modules (js-injector--get-import-function-params-as-list))
          (unused-modules (--filter (eq (s-count-matches (format "\\b%s\\b" it)
                                                         (buffer-substring (js-injector--goto-import-function-params) (point-max)))
@@ -343,6 +347,7 @@ When called with a PFX argument, this will prompt for the import name."
   "Run through each current import module and reimport them.
 Prompting user for the paths to the modules they want to import."
   (interactive)
+  (js-injector--guard)
   (let ((popup-point (point)))
     (save-excursion
       (--map (js-injector-import it nil popup-point) (js-injector--get-import-function-params-as-list)))))
@@ -351,6 +356,7 @@ Prompting user for the paths to the modules they want to import."
 (defun js-injector-sort-dependencies ()
   "Sort the dependencies alphabetically."
   (interactive)
+  (js-injector--guard)
   (save-excursion
     (let* ((zipped-modules
             (--sort (string< (car it) (car other))
@@ -363,7 +369,7 @@ Prompting user for the paths to the modules they want to import."
 
 (defun js-injector--requirejs-file? ()
   "Guess whether current file is a requirejs file.
-If not, we assu,e its a node module."
+If not, we assume its a node module."
   (save-excursion
     (with-current-buffer (buffer-name)
       (goto-char (point-min))
@@ -372,6 +378,12 @@ If not, we assu,e its a node module."
                (when (js2-call-node-p (js2-node-at-point))
                  (> (length (js2-call-node-args (js2-node-at-point))) 1))
              t)))))
+
+(defun js-injector--guard ()
+  "Guard against running commands in unsupported files."
+  (interactive)
+  (unless (js-injector--requirejs-file?)
+    (error "Not currently in a requirejs file")))
 
 ;;;###autoload
 (defun js-injector-clever-import-module (&optional pfx)

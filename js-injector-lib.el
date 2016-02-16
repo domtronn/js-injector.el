@@ -51,7 +51,6 @@ e.g.  `>=0.10.3 ~0.12` etc"
 
 (defun js-injector-relativise (files containing-dir)
   "Maps all file paths in FILES to be relative to CONTAINING-DIR."
-	
   (cl-loop for file-alist in files
            for file = (car file-alist)
            for locations = (cdr file-alist)
