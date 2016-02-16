@@ -154,9 +154,7 @@ If POS is non-nil, inject the dependency at position."
 				 (dependency-match (assoc-string module dependency-alist t))
 				 (dependencies (cdr dependency-match))
 				 
-				 (import-module (if (> (length dependencies) 1)
-														(popup-menu* dependencies :point (point))
-													(car dependencies)))
+				 (import-module (js-injector--read-dependencies dependencies))
 				 (import-name (when prompt-name (read-string "Import as: "))))
 
 		(unless import-module

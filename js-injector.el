@@ -289,9 +289,7 @@ place the popup menu, else use the current value of `point`"
          (dependencies (cdr dependency-match))
 
          (qc (js-injector--get-quote-char))
-         (import-module (if (> (length dependencies) 1)
-                            (popup-menu* dependencies :point (or popup-point (point)))
-                          (car dependencies)))
+         (import-module (js-injector--read-dependencies dependencies popup-point))
          
          (imported-modules (js-injector--get-import-function-params-as-list))
          (import-name (when (and import-module prompt-name)
@@ -310,7 +308,7 @@ place the popup menu, else use the current value of `point`"
 When given a PFX argument, will prompt user for the module name to be imported as."
   (interactive "P")
   (js-injector--guard)
-  (save-excursion (js-injector-import (word-at-point) pfx) t))
+  (save-excursion (js-injector-import (word-at-point) pfx (point)) t))
 
 ;;;###autoload
 (defun js-injector-import-module (&optional pfx)
@@ -343,14 +341,17 @@ When called with a PFX argument, this will prompt for the import name."
     (-map 'js-injector-remove-module unused-modules)))
 
 ;;;###autoload
-(defun js-injector-update-dependencies ()
+(defun js-injector-update-dependencies (pfx)
   "Run through each current import module and reimport them.
-Prompting user for the paths to the modules they want to import."
-  (interactive)
+Prompting user for the paths to the modules they want to import.
+
+When called with a PFX argument, this will prompt the user for
+the name they want to import modules as."
+  (interactive "P")
   (js-injector--guard)
   (let ((popup-point (point)))
     (save-excursion
-      (--map (js-injector-import it nil popup-point) (js-injector--get-import-function-params-as-list)))))
+      (--map (js-injector-import it) (js-injector--get-import-function-params-as-list)))))
 
 ;;;###autoload
 (defun js-injector-sort-dependencies ()
