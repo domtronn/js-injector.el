@@ -27,6 +27,7 @@
 
 (require 'dash)
 (require 's)
+(require 'multi-line)
 
 (require 'js-injector-lib)
 (require 'js-injector-node)
@@ -187,18 +188,18 @@ the current file."
 
 (defun js-injector--get-import-block-as-list ()
   "Get the define import function parameters."
-  (split-string (js-injector--get-import-block) ", "))
+  (-filter 's-present? (split-string (js-injector--get-import-block) ", ")))
 
 (defun js-injector--get-import-function-params ()
   "Get the define import function parameters."
   (save-excursion
     (let ((beg (js-injector--goto-import-function-params))
           (end (- (search-forward ")") 1)))
-      (buffer-substring-no-properties beg end))))
+      (s-trim (s-collapse-whitespace (buffer-substring-no-properties beg end))))))
 
 (defun js-injector--get-import-function-params-as-list ()
   "Get the define import function parameters."
-  (split-string (js-injector--get-import-function-params) ", "))
+  (-filter 's-present? (split-string (js-injector--get-import-function-params) ", ")))
 
 ;;; Injector definitions
 ;;  Functions that inject dependencies into the current file
@@ -217,7 +218,8 @@ defaults to `-insert-at`."
          (f (or f '-insert-at)))
     
     (js-injector-replace-region
-     beg end (mapconcat 'identity (funcall f pos module modules) ", "))))
+     beg end (mapconcat 'identity (funcall f pos module modules) ", ")))
+  (js-injector--format-function-params))
 
 (defun js-injector--import-module-name (import &optional pos f)
   "Import IMPORT into the import block at index POS.
@@ -233,7 +235,7 @@ defaults to `-insert-at`."
     
     (js-injector-replace-region
      beg end
-     (format "%s" (mapconcat 'identity (funcall f pos import imports) ",\n"))))
+     (format "%s" (mapconcat 'identity (funcall f pos import imports) ","))))
   (js-injector--format-import))
 
 ;;; Format definitions
@@ -242,6 +244,7 @@ defaults to `-insert-at`."
   "Format the import block."
   (let ((beg (and (js-injector--goto-first-import) (point)))
         (end (and (js-injector--goto-last-import) (point))))
+    (multi-line nil)
     (indent-region beg end)))
 
 (defun js-injector--format-function-params ()
@@ -271,6 +274,12 @@ defaults to `-insert-at`."
     (js-injector--insert-module-name nil pos '(lambda (n x list) (-remove-at n list)))
     (js-injector--import-module-name nil pos '(lambda (n x list) (-remove-at n list)))))
 
+(defun js-injector--remove-all ()
+  "Remove all current import modules from the file."
+  (cl-loop repeat (length (js-injector--get-import-function-params-as-list))
+           do (js-injector--insert-module-name nil 0 '(lambda (n x list) (-remove-at n list)))
+              (js-injector--import-module-name nil 0 '(lambda (n x list) (-remove-at n list)))))
+
 (defun js-injector-import (module &optional prompt-name popup-point)
   "Inject MODULE as dependency.
 This function will look for MODULE it in the dependncy list.
@@ -283,17 +292,17 @@ If PROMPT-NAME is non-nil, this function will prompt the user for
 the name they would like to import the module as.
 
 If POPUP-POINT is non-nil, use this value as the position to
-place the popup menu, else use the current value of `point`"
+place the popup menu, else use the current value of `point`."
   (let* ((dependency-alist (js-injector-get-dependency-alist))
          (dependency-match (assoc-string module dependency-alist t))
          (dependencies (cdr dependency-match))
 
          (qc (js-injector--get-quote-char))
-         (import-module (js-injector--read-dependencies dependencies popup-point))
+         (import-module (js-injector--read-dependencies module dependencies popup-point))
          
          (imported-modules (js-injector--get-import-function-params-as-list))
          (import-name (when (and import-module prompt-name)
-                        (read-string "Import as: "))))
+                        (read-string (format "Import '%s' as: " module)))))
     
     (unless import-module
       (error "No module named '%s'" module))
@@ -349,9 +358,14 @@ When called with a PFX argument, this will prompt the user for
 the name they want to import modules as."
   (interactive "P")
   (js-injector--guard)
-  (let ((popup-point (point)))
+  (let ((popup-point (point))
+        (imports (js-injector--get-import-block-as-list))
+        (modules (js-injector--get-import-function-params-as-list)))
     (save-excursion
-      (--map (js-injector-import it) (js-injector--get-import-function-params-as-list)))))
+      (js-injector--remove-all)
+      (--map-indexed
+       (js-injector-import (s-chop-suffixes'("'" "\"") (file-name-base (nth it-index imports))) pfx)
+       modules))))
 
 ;;;###autoload
 (defun js-injector-sort-dependencies ()

@@ -57,14 +57,14 @@ e.g.  `>=0.10.3 ~0.12` etc"
     collect
 		(cons file (--map (file-relative-name it containing-dir) locations))))
 
-(defun js-injector--read-dependencies (dependencies &optional popup-point)
+(defun js-injector--read-dependencies (module dependencies &optional popup-point)
   "Prompt user for a dependency from DEPENDENCIES.
 If POPUP-POINT is non-nil, use a `popup-menu*` rather than a
   `completing-read`."
   (if (> (length dependencies) 1)
       (if popup-point
           (popup-menu* dependencies :point popup-point)
-        (completing-read "Import module: " dependencies))
+        (completing-read (format "Import '%s' from: " module) dependencies))
     (car dependencies)))
 
 ;;; 3rd Party helper functions
