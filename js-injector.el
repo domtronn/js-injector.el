@@ -372,22 +372,27 @@ If not, we assu,e its a node module."
                  (> (length (js2-call-node-args (js2-node-at-point))) 1))
              t)))))
 
-(defun js-injector-clever-import-module ()
+;;;###autoload
+(defun js-injector-clever-import-module (&optional pfx)
   "Cleverly guess what kind of import to run given context.
 
 This will guess whether to use the node import or the requirejs
 import based on tell tale signs in the file, such as the presence
 of the require/define/req.def blocks, or the
-module.exports/exports of the node."
-  (interactive)
+module.exports/exports of the node.
+
+When called with a PFX argument, this will prompt user for import
+on module namings."
+  (interactive "P")
   (if (js-injector--requirejs-file?)
-      (unless (ignore-errors (js-injector-import-module-at-point))
-        (js-injector-import-module))
-    (unless (ignore-errors (js-injector-node-import-module-at-point))
-			(js-injector-node-import-module))))
+      (unless (ignore-errors (js-injector-import-module-at-point pfx))
+        (js-injector-import-module pfx))
+    (unless (ignore-errors (js-injector-node-import-module-at-point pfx))
+			(js-injector-node-import-module pfx))))
 
 (defvar js-injector-sup-command-map
   (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "C-j") 'js-injector-clever-import-module)
     (define-key map (kbd "i") 'js-injector-import-module)
     (define-key map (kbd "k") 'js-injector-remove-module)
     (define-key map (kbd "u") 'js-injector-update-dependencies)
