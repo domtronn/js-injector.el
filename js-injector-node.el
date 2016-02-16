@@ -143,7 +143,7 @@ This will try to read it from the `package.json` engine field,
 (defun js-injector-node--goto-end-of-import ()
   "Navigate to the end import/require block at the end of the file."
   (js-injector-node--goto-first-import)
-  (while (search-forward-regexp "\\(let\\|const\\|var\\).*require(.*$" nil t)
+  (while (search-forward-regexp "^\\(let\\|const\\|var\\).*require(.*$" nil t)
     (forward-char 1)))
 			
 ;;; Interactive Injector functions
@@ -178,15 +178,17 @@ If POS is non-nil, inject the dependency at position."
 (defun js-injector-node--inject-module (module module-name &optional pos)
 	"Inject MODULE into the node file as MODULE-NAME.
 If POS is non-nil, goto position before injecting module."
-	(if pos
-			(progn (goto-char pos)
-						 (delete-region (line-beginning-position) (1+ (line-end-position))))
-		(js-injector-node--goto-end-of-import))
-	(let ((qc (js-injector--get-quote-char)))
-		(insert
-		 (format
-			(if (js-injector-node-version>4) "const %s = require(%s%s%s);\n" "var %s = require(%s%s%s);\n")
-			module-name qc module qc))))
+	(unless pos (js-injector-node--goto-end-of-import))
+	(let* ((qc (js-injector--get-quote-char))
+         (import (format
+                  (if (js-injector-node-version>4) "const %s = require(%s%s%s);" "var %s = require(%s%s%s);")
+                  module-name qc module qc)))
+    (if (not pos)
+        (insert (format "%s\n" import))
+      (delete-region (point) (line-end-position))
+      (insert (s-chop-prefix
+               (s-trim-left (buffer-substring-no-properties (line-beginning-position) (point)))
+               import)))))
 
 ;;;###autoload
 (defun js-injector-node-import-module-at-point (&optional pfx)
@@ -196,15 +198,14 @@ what name they want to import the file as."
   (interactive "P")
 	(let* ((module (word-at-point))
 				 (var-decl (js-injector-node--var-decl?))
-				 (pos (and var-decl (line-beginning-position))))
+				 (pos (and var-decl (point))))
 		
     (save-excursion
       (cond
        ((eq (car var-decl) 'assign)  (funcall (cdr var-decl) pfx))
        ((eq (car var-decl) 'declare) (funcall (cdr var-decl) pfx pos))
        ((eq (car var-decl) 'var)     (funcall (cdr var-decl)))
-       (t (js-injector-node-import module pfx pos)))
-      (indent-region pos (line-end-position)) t)))
+       (t (js-injector-node-import module pfx pos))) t)))
 
 ;;;###autoload
 (defun js-injector-node-import-module (&optional pfx)
@@ -216,10 +217,11 @@ what name they want to import the file as."
 															(js-injector-get-relative-dependency-alist)
 															(ignore-errors (js-injector-node-get-node-module-alist)))))
 				 (module (completing-read "Import module: " modules))
-				 (var-decl (js-injector-node--var-decl?))
-				 (pos (and var-decl (line-beginning-position))))
+         (var-decl (js-injector-node--var-decl?))
+				 (pos (and var-decl (point))))
 		
-			(save-excursion (js-injector-node-import module pfx pos))))
+    (save-excursion
+      (js-injector-node-import module pfx (and (eq (car var-decl) 'var) pos)))))
 
 (provide 'js-injector-node)
 ;; Local Variables:
