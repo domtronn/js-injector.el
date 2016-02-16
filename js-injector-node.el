@@ -83,10 +83,12 @@ a distinct list of both the dev and production dependencies."
 If you are, return the variable name currently being defined."
   (let* ((line (buffer-substring-no-properties
                 (line-beginning-position) (line-end-position)))
-         (assign-match (s-match "\\(var\\|const\\|let\\)\\s-+\\([a-z_][a-z_0-9]+\\)\\s-+=\\s-+\\([a-z_][a-z_0-9]*\\)" line))
-         (declare-match (s-match "\\(var\\|const\\|let\\)\\s-+\\([a-z_][a-z_0-9]+\\)" line))
+         (require-match (s-match "\\(var\\|const\\|let\\)\\s-+\\([a-z_][a-z_0-9]*\\)\\s-+=\\s-+require(.*" line))
+         (assign-match (s-match "\\(var\\|const\\|let\\)\\s-+\\([a-z_][a-z_0-9]*\\)\\s-+=\\s-+\\([a-z_][a-z_0-9]*\\)" line))
+         (declare-match (s-match "\\(var\\|const\\|let\\)\\s-+\\([a-z_][a-z_0-9]*\\)" line))
          (var-match (s-match "\\(var\\|let\\|const\\)" line)))
     (cond
+     (require-match (cons 'require 'js-injector-node-update-module-at-point))
      (assign-match (cons 'assign (apply-partially 'js-injector-node-import (car (last assign-match)))))
      (declare-match (cons 'declare (apply-partially 'js-injector-node-import (car (last declare-match)))))
      (var-match (cons 'var 'js-injector-node-import-module)))))
@@ -209,9 +211,10 @@ what name they want to import the file as."
 
     (save-excursion
       (cond
-       ((eq (car var-decl) 'assign)  (funcall (cdr var-decl) pfx))
-       ((eq (car var-decl) 'declare) (funcall (cdr var-decl) pfx pos))
-       ((eq (car var-decl) 'var)     (funcall (cdr var-decl)))
+       ((eq (car var-decl) 'require)  (funcall (cdr var-decl) pfx))
+       ((eq (car var-decl) 'assign)   (funcall (cdr var-decl) pfx))
+       ((eq (car var-decl) 'declare)  (funcall (cdr var-decl) pfx pos))
+       ((eq (car var-decl) 'var)      (funcall (cdr var-decl)))
        (t (js-injector-node-import module pfx pos)))
       (indent-region (line-beginning-position) (line-end-position)) t)))
 
@@ -242,15 +245,15 @@ any other path in the project."
            (var-require (js-injector-node--get-var-require))
            (module (car var-require))
 
-           (dependency-alist (js-injector-get-relative-dependency-alist))
+           (dependency-alist (append
+                              (js-injector-get-relative-dependency-alist)
+                              (ignore-errors (js-injector-node-get-node-module-alist))))
            (dependency-match (assoc-string module dependency-alist t))
            (dependencies (if pfx (-flatten (-map 'cdr dependency-alist))
                            (cdr dependency-match)))
 
            (import
             (js-injector--read-dependencies module dependencies cur-pos)))
-
-      (message "Dependencies: %s" dependencies)
 
       (unless import
         (error "Could not reimport module '%s'" module))
