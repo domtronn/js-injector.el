@@ -35,9 +35,11 @@
 (defvar js-injector-node-executable (executable-find "node")
 	"Executable path for `node`.")
 
-(defcustom js-injector-node-lib-alist
+(defcustom js-injector-node-lib-alias-alist
 	'(("ramda" . "R")
 		("lodash" . "_")
+		("underscore" . "_")
+		("jquery" . "$")
 		("react" . "React")
 		("supertest" . "request")
 		("q" . "Q"))
@@ -73,8 +75,8 @@ a distinct list of both the dev and production dependencies."
 		(--map (cons it (list (symbol-name it))) node-modules)))
 
 (defun js-injector-node--nice-name (name)
-  "Return the nice node NAME defined in `js-injector-node-lib-alist`."
-	(or (cdr (assoc name js-injector-node-lib-alist)) name))
+  "Return the nice node NAME defined in `js-injector-node-lib-alias-alist`."
+	(or (cdr (assoc name js-injector-node-lib-alias-alist)) name))
 
 (defun js-injector-node--var-decl? ()
   "Check whether you're in a variable declaration.
