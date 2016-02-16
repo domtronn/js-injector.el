@@ -31,21 +31,21 @@
 
 ;;; Group Definitions
 (defvar js-injector-node-use-dev t
-	"Whether to read the dev dependencies for requiring node modules.")
+  "Whether to read the dev dependencies for requiring node modules.")
 (defvar js-injector-node-executable (executable-find "node")
-	"Executable path for `node`.")
+  "Executable path for `node`.")
 
 (defcustom js-injector-node-lib-alias-alist
-	'(("ramda" . "R")
-		("lodash" . "_")
-		("underscore" . "_")
-		("jquery" . "$")
-		("react" . "React")
-		("supertest" . "request")
-		("q" . "Q"))
-	"Alist of node libraries and their 'nice' require names."
-	:group 'js-injector
-	:type '(alist :key-type string :value-type string))
+  '(("ramda" . "R")
+    ("lodash" . "_")
+    ("underscore" . "_")
+    ("jquery" . "$")
+    ("react" . "React")
+    ("supertest" . "request")
+    ("q" . "Q"))
+  "Alist of node libraries and their 'nice' require names."
+  :group 'js-injector
+  :type '(alist :key-type string :value-type string))
 
 ;;; Get definitions
 ;;  Functions to get various bits of information required for dependencies
@@ -54,42 +54,42 @@
 When called with GET-DEV-DEPENDENCIES, this function will return
 a distinct list of both the dev and production dependencies."
   (let ((package-dir
-				 (locate-dominating-file default-directory "package.json")))
-		
-		(unless package-dir
-			(error "Could not find a package.json in the current project"))
-		
-		(let* ((json-object-type 'alist)
-					 (json-alist (json-read-file (format "%s/package.json" package-dir))))
-			
-			(-distinct
-			 (-flatten-n 1
-				(--map
-				 (-map 'car (cdr (assoc it json-alist)))
-				 (append '(dependencies)
-								 (when get-dev-dependencies '(devDependencies)))))))))
+         (locate-dominating-file default-directory "package.json")))
+
+    (unless package-dir
+      (error "Could not find a package.json in the current project"))
+
+    (let* ((json-object-type 'alist)
+           (json-alist (json-read-file (format "%s/package.json" package-dir))))
+
+      (-distinct
+       (-flatten-n 1
+        (--map
+         (-map 'car (cdr (assoc it json-alist)))
+         (append '(dependencies)
+                 (when get-dev-dependencies '(devDependencies)))))))))
 
 (defun js-injector-node-get-node-module-alist ()
   "Get a list of node modules associated with their nice names."
-	(let ((node-modules (js-injector-node-get-node-modules)))
-		(--map (cons it (list (symbol-name it))) node-modules)))
+  (let ((node-modules (js-injector-node-get-node-modules)))
+    (--map (cons it (list (symbol-name it))) node-modules)))
 
 (defun js-injector-node--nice-name (name)
   "Return the nice node NAME defined in `js-injector-node-lib-alias-alist`."
-	(or (cdr (assoc name js-injector-node-lib-alias-alist)) name))
+  (or (cdr (assoc name js-injector-node-lib-alias-alist)) name))
 
 (defun js-injector-node--var-decl? ()
   "Check whether you're in a variable declaration.
 If you are, return the variable name currently being defined."
-	(let* ((line (buffer-substring-no-properties
-								(line-beginning-position) (line-end-position)))
-				 (assign-match (s-match "\\(var\\|const\\|let\\)\\s-+\\([a-z_][a-z_0-9]+\\)\\s-+=\\s-+\\([a-z_][a-z_0-9]*\\)" line))
-				 (declare-match (s-match "\\(var\\|const\\|let\\)\\s-+\\([a-z_][a-z_0-9]+\\)" line))
-				 (var-match (s-match "\\(var\\|let\\|const\\)" line)))
-		(cond
-		 (assign-match (cons 'assign (apply-partially 'js-injector-node-import (car (last assign-match)))))
+  (let* ((line (buffer-substring-no-properties
+                (line-beginning-position) (line-end-position)))
+         (assign-match (s-match "\\(var\\|const\\|let\\)\\s-+\\([a-z_][a-z_0-9]+\\)\\s-+=\\s-+\\([a-z_][a-z_0-9]*\\)" line))
+         (declare-match (s-match "\\(var\\|const\\|let\\)\\s-+\\([a-z_][a-z_0-9]+\\)" line))
+         (var-match (s-match "\\(var\\|let\\|const\\)" line)))
+    (cond
+     (assign-match (cons 'assign (apply-partially 'js-injector-node-import (car (last assign-match)))))
      (declare-match (cons 'declare (apply-partially 'js-injector-node-import (car (last declare-match)))))
-		 (var-match (cons 'var 'js-injector-node-import-module)))))
+     (var-match (cons 'var 'js-injector-node-import-module)))))
 
 ;;; Version calculation definitions
 ;;  Functions to calculate the version of node in use in a project
@@ -100,56 +100,56 @@ If you are, return the variable name currently being defined."
 This will try to read it from the `package.json` engine field,
   otherwise fall back to reading from `.node-version`, or finally
   executing `node --version`."
-	(let ((node-version (or (js-injector-node--package-version)
-													(js-injector-node--dot-version)
-													(js-injector-node--version))))
-		
-		(version<= "4" node-version)))
+  (let ((node-version (or (js-injector-node--package-version)
+                          (js-injector-node--dot-version)
+                          (js-injector-node--version))))
+
+    (version<= "4" node-version)))
 
 (defun js-injector-node--package-version ()
-	"Read the node version from the `package.json` file."
+  "Read the node version from the `package.json` file."
   (let ((package-dir (locate-dominating-file default-directory "package.json")))
-		(unless package-dir (error "Project does not contain a `package.json`"))
-		(let* ((json-object-type 'alist)
-					 (json-alist (json-read-file (format "%s/package.json" package-dir)))
-					 (engines (cdr (assoc 'engines json-alist))))
-			(js-injector--parse-version (cdr (assoc 'node engines))))))
+    (unless package-dir (error "Project does not contain a `package.json`"))
+    (let* ((json-object-type 'alist)
+           (json-alist (json-read-file (format "%s/package.json" package-dir)))
+           (engines (cdr (assoc 'engines json-alist))))
+      (js-injector--parse-version (cdr (assoc 'node engines))))))
 
 (defun js-injector-node--dot-version ()
   "Read the node version from the `.node-version` file."
-	(let ((node-version-dir (locate-dominating-file default-directory ".node-version")))
-		(unless node-version-dir (error "Project does not contain a `.node-version`"))
-		(with-temp-buffer
-			(insert-file-contents (format "%s/.node-version" node-version-dir))
-			(s-trim (s-collapse-whitespace (buffer-string))))))
+  (let ((node-version-dir (locate-dominating-file default-directory ".node-version")))
+    (unless node-version-dir (error "Project does not contain a `.node-version`"))
+    (with-temp-buffer
+      (insert-file-contents (format "%s/.node-version" node-version-dir))
+      (s-trim (s-collapse-whitespace (buffer-string))))))
 
 (defun js-injector-node--version ()
   "Find the node version by running `node --version`."
-	(unless js-injector-node-executable (error "You do not have `node` executable available"))
-	(js-injector--parse-version
-	 (shell-command-to-string (format "%s --version" js-injector-node-executable))))
+  (unless js-injector-node-executable (error "You do not have `node` executable available"))
+  (js-injector--parse-version
+   (shell-command-to-string (format "%s --version" js-injector-node-executable))))
 
 ;;; Navigation definitions
 ;;  Functions to navigate around the requirejs file
 
 (defun js-injector-node--goto-first-import ()
   "Navigate to the first import/require in the file."
-	(goto-char (point-min))
-	(search-forward-regexp "['\"]use strict[\"'].*?[;]\\{0,1\\}" nil t)
-	(skip-chars-forward " \n\t")
-	(search-forward-regexp "require(\\|import" nil t)
-	(beginning-of-line))
+  (goto-char (point-min))
+  (search-forward-regexp "['\"]use strict[\"'].*?[;]\\{0,1\\}" nil t)
+  (skip-chars-forward " \n\t")
+  (search-forward-regexp "require(\\|import" nil t)
+  (beginning-of-line))
 
 (defun js-injector-node--goto-end-of-import ()
   "Navigate to the end import/require block at the end of the file."
   (js-injector-node--goto-first-import)
   (while (search-forward-regexp "^\\(let\\|const\\|var\\).*require(.*$" nil t)
     (forward-char 1)))
-			
+
 ;;; Interactive Injector functions
 
 (defun js-injector-node-import (module &optional prompt-name pos)
-	"Import MODULE as a dependency relative to current file.
+  "Import MODULE as a dependency relative to current file.
 This function will look for MODULE in a dependency list relative
 to the current file and add it as an import/require statement at
 the top of the file.
@@ -159,27 +159,27 @@ the name they would like to import the module as.
 
 If POS is non-nil, inject the dependency at position."
   (let* ((dependency-alist (append
-														(js-injector-get-relative-dependency-alist)
-														(ignore-errors (js-injector-node-get-node-module-alist))))
-				 (dependency-match (assoc-string module dependency-alist t))
-				 (dependencies (cdr dependency-match))
-				 
-				 (import-module (js-injector--read-dependencies module dependencies))
-				 (import-name (when (and import-module prompt-name)
+                            (js-injector-get-relative-dependency-alist)
+                            (ignore-errors (js-injector-node-get-node-module-alist))))
+         (dependency-match (assoc-string module dependency-alist t))
+         (dependencies (cdr dependency-match))
+
+         (import-module (js-injector--read-dependencies module dependencies))
+         (import-name (when (and import-module prompt-name)
                         (read-string (format "Import '%s' as: " module)))))
 
-		(unless import-module
-			(error "No module named '%s'" module))
+    (unless import-module
+      (error "No module named '%s'" module))
 
-		(js-injector-node--inject-module (file-name-sans-extension import-module)
-										 (or import-name (js-injector-node--nice-name module))
-										 pos)))
+    (js-injector-node--inject-module (file-name-sans-extension import-module)
+                     (or import-name (js-injector-node--nice-name module))
+                     pos)))
 
 (defun js-injector-node--inject-module (module module-name &optional pos)
-	"Inject MODULE into the node file as MODULE-NAME.
+  "Inject MODULE into the node file as MODULE-NAME.
 If POS is non-nil, goto position before injecting module."
-	(unless pos (js-injector-node--goto-end-of-import))
-	(let* ((qc (js-injector--get-quote-char))
+  (unless pos (js-injector-node--goto-end-of-import))
+  (let* ((qc (js-injector--get-quote-char))
          (import (format
                   (if (js-injector-node-version>4) "const %s = require(%s%s%s);" "var %s = require(%s%s%s);")
                   module-name qc module qc)))
@@ -192,34 +192,35 @@ If POS is non-nil, goto position before injecting module."
 
 ;;;###autoload
 (defun js-injector-node-import-module-at-point (&optional pfx)
-	"Import the module at point.
+  "Import the module at point.
 When called with a PFX argument, this will prompt the user for
 what name they want to import the file as."
   (interactive "P")
-	(let* ((module (word-at-point))
-				 (var-decl (js-injector-node--var-decl?))
-				 (pos (and var-decl (point))))
-		
+  (let* ((module (word-at-point))
+         (var-decl (js-injector-node--var-decl?))
+         (pos (and var-decl (point))))
+
     (save-excursion
       (cond
        ((eq (car var-decl) 'assign)  (funcall (cdr var-decl) pfx))
        ((eq (car var-decl) 'declare) (funcall (cdr var-decl) pfx pos))
        ((eq (car var-decl) 'var)     (funcall (cdr var-decl)))
-       (t (js-injector-node-import module pfx pos))) t)))
+       (t (js-injector-node-import module pfx pos)))
+      (indent-region (line-beginning-position) (line-end-position)) t)))
 
 ;;;###autoload
 (defun js-injector-node-import-module (&optional pfx)
-	"Import a module in the project.
+  "Import a module in the project.
 When called with a PFX argument, this will prompt the user for
 what name they want to import the file as."
   (interactive "P")
-	(let* ((modules (-map 'car (append
-															(js-injector-get-relative-dependency-alist)
-															(ignore-errors (js-injector-node-get-node-module-alist)))))
-				 (module (completing-read "Import module: " modules))
+  (let* ((modules (-map 'car (append
+                              (js-injector-get-relative-dependency-alist)
+                              (ignore-errors (js-injector-node-get-node-module-alist)))))
+         (module (completing-read "Import module: " modules))
          (var-decl (js-injector-node--var-decl?))
-				 (pos (and var-decl (point))))
-		
+         (pos (and var-decl (point))))
+
     (save-excursion
       (js-injector-node-import module pfx (and (eq (car var-decl) 'var) pos)))))
 

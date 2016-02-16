@@ -121,7 +121,10 @@ the current file."
 							collect
 							(when (string-match "\.js[on]\\{0,2\\}$" file)
 								(cons (file-name-sans-extension file)
-											(--map (file-relative-name it containing-dir) locations)))))))
+											(--map (if (string-match "^[a-zA-Z]" (file-relative-name it containing-dir))
+                                 (concat "./" (file-relative-name it containing-dir))
+                               (file-relative-name it containing-dir))
+                             locations)))))))
 
 ;;; Navigation definitions
 ;;  Functions to navigate around the requirejs file
