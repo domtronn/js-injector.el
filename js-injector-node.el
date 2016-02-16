@@ -91,6 +91,13 @@ If you are, return the variable name currently being defined."
      (declare-match (cons 'declare (apply-partially 'js-injector-node-import (car (last declare-match)))))
      (var-match (cons 'var 'js-injector-node-import-module)))))
 
+(defun js-injector-node--get-var-require ()
+  "Return the require path and the region it occupies."
+  (goto-char (line-beginning-position))
+  (let ((beg (search-forward-regexp "require(['\"]"))
+        (end (- (search-forward-regexp "['\"])") 2)))
+    (cons (file-name-base (buffer-substring-no-properties beg end)) (list beg end))))
+
 ;;; Version calculation definitions
 ;;  Functions to calculate the version of node in use in a project
 
@@ -223,6 +230,33 @@ what name they want to import the file as."
 
     (save-excursion
       (js-injector-node-import module pfx (and (eq (car var-decl) 'var) pos)))))
+
+;;;###autoload
+(defun js-injector-node-update-module-at-point (&optional pfx)
+  "Reimport the current module in a require statement.
+When PFX is non-nil, this will prompt to replace this path with
+any other path in the project."
+  (interactive "P")
+  (save-excursion
+    (let* ((cur-pos (unless pfx (point)))
+           (var-require (js-injector-node--get-var-require))
+           (module (car var-require))
+
+           (dependency-alist (js-injector-get-relative-dependency-alist))
+           (dependency-match (assoc-string module dependency-alist t))
+           (dependencies (if pfx (-flatten (-map 'cdr dependency-alist))
+                           (cdr dependency-match)))
+
+           (import
+            (js-injector--read-dependencies module dependencies cur-pos)))
+
+      (message "Dependencies: %s" dependencies)
+
+      (unless import
+        (error "Could not reimport module '%s'" module))
+
+      (js-injector-replace-region
+       (cadr var-require) (caddr var-require) (file-name-sans-extension import)))))
 
 (provide 'js-injector-node)
 ;; Local Variables:
