@@ -83,11 +83,13 @@ a distinct list of both the dev and production dependencies."
 If you are, return the variable name currently being defined."
 	(let* ((line (buffer-substring-no-properties
 								(line-beginning-position) (line-end-position)))
-				 (full-match (s-match "\\(var\\|let\\|const\\)\\s-+\\([a-z0-9_]*\\)" line))
-				 (partial-match (s-match "\\(var\\|let\\|const\\)" line)))
+				 (assign-match (s-match "\\(var\\|const\\|let\\)\\s-+\\([a-z_][a-z_0-9]+\\)\\s-+=\\s-+\\([a-z_][a-z_0-9]*\\)" line))
+				 (declare-match (s-match "\\(var\\|const\\|let\\)\\s-+\\([a-z_][a-z_0-9]+\\)" line))
+				 (var-match (s-match "\\(var\\|let\\|const\\)" line)))
 		(cond
-		 (full-match (caddr full-match))
-		 (partial-match t))))
+		 (assign-match (cons 'assign (apply-partially 'js-injector-node-import (car (last assign-match)))))
+     (declare-match (cons 'declare (apply-partially 'js-injector-node-import (car (last declare-match)))))
+		 (var-match (cons 'var 'js-injector-node-import-module)))))
 
 ;;; Version calculation definitions
 ;;  Functions to calculate the version of node in use in a project
@@ -137,6 +139,12 @@ This will try to read it from the `package.json` engine field,
 	(skip-chars-forward " \n\t")
 	(search-forward-regexp "require(\\|import" nil t)
 	(beginning-of-line))
+
+(defun js-injector-node--goto-end-of-import ()
+  "Navigate to the end import/require block at the end of the file."
+  (js-injector-node--goto-first-import)
+  (while (search-forward-regexp "\\(let\\|const\\|var\\).*require(.*$" nil t)
+    (forward-char 1)))
 			
 ;;; Interactive Injector functions
 
@@ -157,7 +165,8 @@ If POS is non-nil, inject the dependency at position."
 				 (dependencies (cdr dependency-match))
 				 
 				 (import-module (js-injector--read-dependencies module dependencies))
-				 (import-name (when prompt-name (read-string "Import as: "))))
+				 (import-name (when (and import-module prompt-name)
+                        (read-string (format "Import '%s' as: " module)))))
 
 		(unless import-module
 			(error "No module named '%s'" module))
@@ -172,11 +181,11 @@ If POS is non-nil, goto position before injecting module."
 	(if pos
 			(progn (goto-char pos)
 						 (delete-region (line-beginning-position) (1+ (line-end-position))))
-		(js-injector-node--goto-first-import))
+		(js-injector-node--goto-end-of-import))
 	(let ((qc (js-injector--get-quote-char)))
 		(insert
 		 (format
-			(if (js-injector-node-version>4) "import %s from %s%s%s;\n" "var %s = require(%s%s%s);\n")
+			(if (js-injector-node-version>4) "const %s = require(%s%s%s);\n" "var %s = require(%s%s%s);\n")
 			module-name qc module qc))))
 
 ;;;###autoload
@@ -189,9 +198,13 @@ what name they want to import the file as."
 				 (var-decl (js-injector-node--var-decl?))
 				 (pos (and var-decl (line-beginning-position))))
 		
-		(if (and var-decl (equal "" var-decl))
-				(js-injector-node-import-module pfx)
-			(save-excursion (js-injector-node-import module pfx pos)))))
+    (save-excursion
+      (cond
+       ((eq (car var-decl) 'assign)  (funcall (cdr var-decl) pfx))
+       ((eq (car var-decl) 'declare) (funcall (cdr var-decl) pfx pos))
+       ((eq (car var-decl) 'var)     (funcall (cdr var-decl)))
+       (t (js-injector-node-import module pfx pos)))
+      (indent-region pos (line-end-position)) t)))
 
 ;;;###autoload
 (defun js-injector-node-import-module (&optional pfx)
