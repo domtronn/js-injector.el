@@ -347,9 +347,11 @@ When called with a PFX argument, this will prompt for the import name."
   (interactive)
   (js-injector--guard)
   (let* ((modules (js-injector--get-import-function-params-as-list))
-         (unused-modules (--filter (eq (s-count-matches (format "\\b%s\\b" it)
-                                                        (buffer-substring (js-injector--goto-import-function-params) (point-max)))
-                                       1) modules)))
+         (unused-modules (--filter (eq 1 (js-injector--count-occurences
+                                          (format "\\b%s\\b" it)
+                                          (buffer-string)
+                                          0))
+                                   modules)))
     (-map 'js-injector-remove-module unused-modules)))
 
 ;;;###autoload

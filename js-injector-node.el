@@ -74,6 +74,26 @@ a distinct list of both the dev and production dependencies."
   (let ((node-modules (js-injector-node-get-node-modules)))
     (--map (cons it (list (symbol-name it))) node-modules)))
 
+(defun js-injector-node-get-var-declarations ()
+  "Get a list of the variable declarations in the current buffer."
+  (save-excursion
+    (let (result)
+      (with-current-buffer (buffer-name)
+        (goto-char (point-min))
+        (while (search-forward-regexp
+                "\\(var\\|let\\|const\\)\\s-+\\([a-z_][a-z_0-9]*\\)" nil t)
+          (setq result (append (list (match-string-no-properties 2)) result))))
+      result)))
+
+(defun js-injector-node-get-var-declarations-count ()
+  "Get a list of the variable declarations in the current buffer."
+  (let ((vars (js-injector-node-get-var-declarations)))
+    (--map (cons it (js-injector--count-occurences (format "\\b%s\\b" it) (buffer-string) 0)) vars)))
+
+(defun js-injector-node-get-unused-vars ()
+  "Get a list of the unused variables in the current buffer."
+  (-map 'car (--filter (eq 1 (cdr it)) (js-injector-node-get-var-declarations-count))))
+
 (defun js-injector-node--nice-name (name)
   "Return the nice node NAME defined in `js-injector-node-lib-alias-alist`."
   (or (cdr (assoc name js-injector-node-lib-alias-alist)) name))
@@ -260,6 +280,15 @@ any other path in the project."
 
       (js-injector-replace-region
        (cadr var-require) (caddr var-require) (file-name-sans-extension import)))))
+
+;;;###autoload
+(defun js-injector-node-remove-unused-modules ()
+  "Remove all unused modules from the current file."
+  (interactive)
+  (save-excursion
+    (--map (and (goto-char (point-min))
+                (flush-lines (format "require(.*%s.*)" it)))
+           (js-injector-node-get-unused-vars))))
 
 (provide 'js-injector-node)
 ;; Local Variables:

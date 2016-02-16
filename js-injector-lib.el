@@ -67,6 +67,11 @@ If POPUP-POINT is non-nil, use a `popup-menu*` rather than a
         (completing-read (format "Import '%s' from: " module) dependencies))
     (car dependencies)))
 
+(defun js-injector--count-occurences (regex string start)
+  (if (string-match regex string start)
+      (+ (if (js2-string-node-p (js2-node-at-point (match-end 0))) 0 1)
+         (js-injector--count-occurences regex string (match-end 0))) 0))
+
 ;;; 3rd Party helper functions
 ;; projectile
 (defun js-injector--get-projectile-files-alist ()
