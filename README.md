@@ -1,4 +1,4 @@
-# js-dependency-injector.el #
+# js-injector.el #
 
 A package which adds various utility functions around the use of
 `require.js`, such as importing modules from requirejs projects,
