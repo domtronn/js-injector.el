@@ -4,6 +4,7 @@
 
 ;; Author: Dominic Charlesworth <dgc336@gmail.com>
 ;; Keywords: convenience, abbrev, tools
+;; Package-Requires: ((emacs "24") (dash "2.11.0") (s "1.11.0") (js2-mode "20140114"))
 
 ;; This program is free software; you can redistribute it and/or
 ;; modify it under the terms of the GNU General Public License
@@ -20,7 +21,8 @@
 
 ;;; Commentary:
 
-;; This module has functions specific to dependency injection/requiring files for node
+;; This module has functions specific to dependency
+;; injection/requiring files for node projects
 
 ;;; Code:
 
@@ -30,8 +32,11 @@
 (require 'js-injector-lib)
 
 ;;; Group Definitions
-(defvar js-injector-node-use-dev t
-  "Whether to read the dev dependencies for requiring node modules.")
+(defgroup js-injector-node nil
+  "Manage the node specific customs for js-injector."
+  :group 'js-injector
+  :group 'convenience)
+
 (defvar js-injector-node-executable (executable-find "node")
   "Executable path for `node`.")
 
@@ -44,8 +49,18 @@
     ("supertest" . "request")
     ("q" . "Q"))
   "Alist of node libraries and their 'nice' require names."
-  :group 'js-injector
+  :group 'js-injector-node
   :type '(alist :key-type string :value-type string))
+
+
+(defcustom js-injector-node-camelise '(lambda (s) (apply 's-concat (s-split-words s)))
+	"How to sanitise the import names."
+	:type '(radio
+          (const :tag "Relative to file Name"           (lambda (s) (apply 's-concat (s-split-words s))))
+          (const :tag "Upper camel case   e.g. FooBar"  s-upper-camel-case)
+          (const :tag "Lower camel case   e.g. fooBar"  s-lower-camel-case)
+          (const :tag "Snake case         e.g. foo_bar" s-snake-case))
+  :group 'js-injector-node)
 
 ;;; Get definitions
 ;;  Functions to get various bits of information required for dependencies
@@ -96,7 +111,7 @@ a distinct list of both the dev and production dependencies."
 
 (defun js-injector-node--nice-name (name)
   "Return the nice node NAME defined in `js-injector-node-lib-alias-alist`."
-  (or (cdr (assoc name js-injector-node-lib-alias-alist)) name))
+  (funcall js-injector-node-camelise (or (cdr (assoc name js-injector-node-lib-alias-alist)) name)))
 
 (defun js-injector-node--var-decl? ()
   "Check whether you're in a variable declaration.

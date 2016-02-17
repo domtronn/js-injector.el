@@ -4,6 +4,7 @@
 
 ;; Author: Dominic Charlesworth <dgc336@gmail.com>
 ;; Keywords: convenience, abbrev, tools
+;; Package-Requires: ((emacs "24") (dash "2.11.0") (s "1.11.0") (js2-mode "20140114"))
 
 ;; This program is free software; you can redistribute it and/or
 ;; modify it under the terms of the GNU General Public License
@@ -32,6 +33,12 @@
 (require 'js-injector-lib)
 (require 'js-injector-node)
 
+;;; Group Definitions
+(defgroup js-injector nil
+  "Manage the minor mode to allow javascript injection."
+  :group 'tools
+  :group 'convenience)
+
 ;; common custom prefixes
 (defcustom js-injector-sub-keymap-prefix (kbd "C-c j")
   "Js-Injector keymap prefix."
@@ -49,12 +56,6 @@
     (define-key map js-injector-sup-keymap-prefix 'js-injector-sup-command-map)
     map)
   "Keymap for Projectile mode.")
-
-;;; Group Definitions
-(defgroup js-injector nil
-  "Manage the minor mode to allow javascript injection."
-  :group 'tools
-  :group 'convenience)
 
 (defvar js-injector-define-regexp "require\.def(\\|require(\\|define(\\|req.def(")
 
@@ -77,7 +78,7 @@
   :group 'js-injector)
 
 ;;; Get definitions
-;;  Functions to get various bits of information required for dependencies
+;;  Functions to get various bits of information required for imports
 
 (defalias 'js-injector-get-requirejs-config 'jpop-get-requirejs-config)
 
@@ -343,7 +344,7 @@ When called with a PFX argument, this will prompt for the import name."
 
 ;;;###autoload
 (defun js-injector-remove-unused-modules ()
-  "Remove all unused modules in a file."
+  "Remove all unused modules in a requirejs file."
   (interactive)
   (js-injector--guard)
   (let* ((modules (js-injector--get-import-function-params-as-list))
@@ -354,8 +355,13 @@ When called with a PFX argument, this will prompt for the import name."
                                    modules)))
     (-map 'js-injector-remove-module unused-modules)))
 
+(defun js-injector-remove-unused ()
+  "Remove all unused modules from the file."
+  (interactive)
+  (if (js-injector--requirejs-file?) (js-injector-remove-unused-modules) (js-injector-node-remove-unused-modules)))
+
 ;;;###autoload
-(defun js-injector-update-dependencies (pfx)
+(defun js-injector-update-imports (pfx)
   "Run through each current import module and reimport them.
 Prompting user for the paths to the modules they want to import.
 
@@ -373,7 +379,7 @@ the name they want to import modules as."
        modules))))
 
 ;;;###autoload
-(defun js-injector-sort-dependencies ()
+(defun js-injector-sort-imports ()
   "Sort the dependencies alphabetically."
   (interactive)
   (js-injector--guard)
@@ -428,9 +434,9 @@ on module namings."
     (define-key map (kbd "C-i") 'js-injector-clever-import-module)
     (define-key map (kbd "i") 'js-injector-import-module)
     (define-key map (kbd "k") 'js-injector-remove-module)
-    (define-key map (kbd "u") 'js-injector-update-dependencies)
-    (define-key map (kbd "l") 'js-injector-sort-dependencies)
-    (define-key map (kbd "r") 'js-injector-node-import-module)
+    (define-key map (kbd "u") 'js-injector-update-imports)
+    (define-key map (kbd "l") 'js-injector-sort-imports)
+    (define-key map (kbd "n") 'js-injector-node-import-module)
     map)
   "Keymap for Js-Injector commands after `js-injector-sup-keymap-prefix'.")
 (fset 'js-injector-sup-command-map js-injector-sup-command-map)
@@ -439,7 +445,7 @@ on module namings."
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "i") 'js-injector-import-module-at-point)
     (define-key map (kbd "k") 'js-injector-remove-unused-modules)
-    (define-key map (kbd "r") 'js-injector-node-import-module-at-point)
+    (define-key map (kbd "n") 'js-injector-node-import-module-at-point)
     map)
   "Keymap for Js-Injector commands after `js-injector-sub-keymap-prefix'.")
 (fset 'js-injector-sub-command-map js-injector-sub-command-map)

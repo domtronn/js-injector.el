@@ -4,6 +4,7 @@
 
 ;; Author: Dominic Charlesworth <dgc336@gmail.com>
 ;; Keywords: convenience, abbrev, tools
+;; Package-Requires: ((emacs "24") (dash "2.11.0") (s "1.11.0") (js2-mode "20140114"))
 
 ;; This program is free software; you can redistribute it and/or
 ;; modify it under the terms of the GNU General Public License
