@@ -6,8 +6,9 @@ importing modules relatively and importing in a projects installed
 node modules package.json.
 
 This package is primarily built to work with my own project management
-package, [`jpop.el`](https://github.com/domtronn/jpop.el). This can
-also be used with with
+package, [`jpop.el`](https://github.com/domtronn/jpop.el). 
+
+This can also be used with with
 [`projectile`](https://github.com/bbatsov/projectile), but due to its
 source contorl based project creation, it can only import modules
 _relatively_.
