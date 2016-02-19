@@ -138,14 +138,14 @@ If you are, return the variable name currently being defined."
 ;;; Version calculation definitions
 ;;  Functions to calculate the version of node in use in a project
 
-(defun js-injector-node-version>4 ()
+(defun js-injector-node-version>4? ()
   "Guess the node version being used in the project.
 
 This will try to read it from the `package.json` engine field,
   otherwise fall back to reading from `.node-version`, or finally
   executing `node --version`."
-  (let ((node-version (or (js-injector-node--package-version)
-                          (js-injector-node--dot-version)
+  (let ((node-version (or (ignore-errors (js-injector-node--package-version))
+                          (ignore-errors (js-injector-node--dot-version))
                           (js-injector-node--version))))
 
     (version<= "4" node-version)))
@@ -225,7 +225,7 @@ If POS is non-nil, goto position before injecting module."
   (unless pos (js-injector-node--goto-end-of-import))
   (let* ((qc (js-injector--get-quote-char))
          (import (format
-                  (if (js-injector-node-version>4) "const %s = require(%s%s%s);" "var %s = require(%s%s%s);")
+                  (if (js-injector-node-version>4?) "const %s = require(%s%s%s);" "var %s = require(%s%s%s);")
                   module-name qc module qc)))
     (if (not pos)
         (insert (format "%s\n" import))
