@@ -111,7 +111,7 @@ a distinct list of both the dev and production dependencies."
 
 (defun js-injector-node--nice-name (name)
   "Return the nice node NAME defined in `js-injector-node-lib-alias-alist`."
-  (funcall js-injector-node-camelise (or (cdr (assoc name js-injector-node-lib-alias-alist)) name)))
+  (or (cdr (assoc name js-injector-node-lib-alias-alist)) (funcall js-injector-node-camelise name)))
 
 (defun js-injector-node--var-decl? ()
   "Check whether you're in a variable declaration.
