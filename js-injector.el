@@ -192,7 +192,7 @@ the current file."
 
 (defun js-injector--get-import-block-as-list ()
   "Get the define import function parameters."
-  (-filter 's-present? (split-string (js-injector--get-import-block) ", ")))
+  (-filter 's-present? (split-string (js-injector--get-import-block) "[, ]")))
 
 (defun js-injector--get-import-function-params ()
   "Get the define import function parameters."
@@ -398,7 +398,8 @@ the name they want to import modules as."
            (sorted-imports (-map 'car zipped-modules))
            (sorted-modules (-map 'cdr zipped-modules)))
       (--map-indexed (js-injector--insert-module-name it it-index '-replace-at) sorted-modules)
-      (--map-indexed (js-injector--import-module-name it it-index '-replace-at) sorted-imports))))
+      (--map-indexed (js-injector--import-module-name it it-index '-replace-at) sorted-imports)))
+  (js-injector-format))
 
 (defun js-injector--requirejs-file? ()
   "Guess whether current file is a requirejs file.
