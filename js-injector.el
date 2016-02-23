@@ -222,8 +222,7 @@ defaults to `-insert-at`."
          (f (or f '-insert-at)))
     
     (js-injector-replace-region
-     beg end (mapconcat 'identity (funcall f pos module modules) ", ")))
-  (js-injector--format-function-params))
+     beg end (mapconcat 'identity (funcall f pos module modules) ", "))))
 
 (defun js-injector--import-module-name (import &optional pos f)
   "Import IMPORT into the import block at index POS.
@@ -239,8 +238,7 @@ defaults to `-insert-at`."
     
     (js-injector-replace-region
      beg end
-     (format "%s" (mapconcat 'identity (funcall f pos import imports) ","))))
-  (js-injector--format-import))
+     (format "%s" (mapconcat 'identity (funcall f pos import imports) ",")))))
 
 ;;; Format definitions
 ;;  Functions that format certain areas of the module
@@ -259,30 +257,38 @@ defaults to `-insert-at`."
     (fill-region beg end)
     (indent-region beg end)))
 
-;;; Interactive Injector functions
+(defun js-injector-format ()
+  "Format both the imports block and the function params."
+  (interactive)
+  (js-injector--format-import)
+  (js-injector--format-function-params))
 
 (defun js-injector--replace-module (module import-module)
   "Replace the current MODULE and its IMPORT-MODULE in the file at its position."
   (let ((pos (-elem-index module (js-injector--get-import-function-params-as-list))))
     (js-injector--insert-module-name module pos '-replace-at)
-    (js-injector--import-module-name import-module pos '-replace-at)))
+    (js-injector--import-module-name import-module pos '-replace-at)
+    (js-injector-format)))
 
 (defun js-injector--insert-module (module import-module)
   "Insert MODULE and its IMPORT-MODULE into file."
   (js-injector--insert-module-name module)
-  (js-injector--import-module-name import-module))
+  (js-injector--import-module-name import-module)
+  (js-injector-format))
 
 (defun js-injector--remove-module (module)
   "Remove MODULE and its import from the file."
   (let ((pos (-elem-index module (js-injector--get-import-function-params-as-list))))
     (js-injector--insert-module-name nil pos '(lambda (n x list) (-remove-at n list)))
-    (js-injector--import-module-name nil pos '(lambda (n x list) (-remove-at n list)))))
+    (js-injector--import-module-name nil pos '(lambda (n x list) (-remove-at n list)))
+    (js-injector-format)))
 
 (defun js-injector--remove-all ()
   "Remove all current import modules from the file."
   (cl-loop repeat (length (js-injector--get-import-function-params-as-list))
            do (js-injector--insert-module-name nil 0 '(lambda (n x list) (-remove-at n list)))
-              (js-injector--import-module-name nil 0 '(lambda (n x list) (-remove-at n list)))))
+           (js-injector--import-module-name nil 0 '(lambda (n x list) (-remove-at n list))))
+  (js-injector-format))
 
 (defun js-injector-import (module &optional prompt-name popup-point)
   "Inject MODULE as dependency.
@@ -313,7 +319,8 @@ place the popup menu, else use the current value of `point`."
 
     (if (member module (js-injector--get-import-function-params-as-list))
         (js-injector--replace-module (or import-name module) (format "%s%s%s" qc import-module qc))
-      (js-injector--insert-module (or import-name module) (format "%s%s%s" qc import-module qc)))))
+      (js-injector--insert-module (or import-name module) (format "%s%s%s" qc import-module qc)))
+    (js-injector-format)))
 
 ;;;###autoload
 (defun js-injector-import-module-at-point (&optional pfx)
