@@ -73,6 +73,17 @@ If POPUP-POINT is non-nil, use a `popup-menu*` rather than a
       (+ (if (js2-string-node-p (js2-node-at-point (match-end 0))) 0 1)
          (js-injector--count-occurences regex string (match-end 0))) 0))
 
+(defun js-injector-describe-modules (&optional pfx)
+  "List imports of a module."
+  (interactive "P")
+  (let* ((modules (if (or pfx (js-injector--requirejs-file?))
+                      (js-injector-get-dependency-alist)
+                    (js-injector-get-relative-dependency-alist)))
+         (module  (completing-read "Module: " modules))
+         (import  (completing-read "Import: " (--map (cons it t) (cdr (eval `(assoc ,module modules)))))))
+    (kill-new module)
+    (kill-new import)))
+
 ;;; 3rd Party helper functions
 ;; projectile
 (defun js-injector--get-projectile-files-alist ()

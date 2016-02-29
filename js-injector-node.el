@@ -215,7 +215,7 @@ If POS is non-nil, inject the dependency at position."
     (unless import-module
       (error "No module named '%s'" module))
 
-    (js-injector-node--inject-module (file-name-sans-extension import-module)
+    (js-injector-node--inject-module import-module
                      (or import-name (js-injector-node--nice-name module))
                      pos)))
 
@@ -294,7 +294,7 @@ any other path in the project."
         (error "Could not reimport module '%s'" module))
 
       (js-injector-replace-region
-       (cadr var-require) (caddr var-require) (file-name-sans-extension import)))))
+       (cadr var-require) (caddr var-require) import))))
 
 ;;;###autoload
 (defun js-injector-node-remove-unused-modules ()

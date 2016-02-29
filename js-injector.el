@@ -122,9 +122,10 @@ the current file."
 							collect
 							(when (string-match "\.js[on]\\{0,2\\}$" file)
 								(cons (file-name-sans-extension file)
-											(--map (if (string-match "^[a-zA-Z]" (file-relative-name it containing-dir))
-                                 (concat "./" (file-relative-name it containing-dir))
-                               (file-relative-name it containing-dir))
+											(--map (file-name-sans-extension
+                              (if (string-match "^[a-zA-Z]" (file-relative-name it containing-dir))
+                                  (concat "./" (file-relative-name it containing-dir))
+                                (file-relative-name it containing-dir)))
                              locations)))))))
 
 ;;; Navigation definitions
@@ -289,15 +290,6 @@ defaults to `-insert-at`."
            do (js-injector--insert-module-name nil 0 '(lambda (n x list) (-remove-at n list)))
            (js-injector--import-module-name nil 0 '(lambda (n x list) (-remove-at n list))))
   (js-injector-format))
-
-(defun js-injector-describe-modules ()
-  "List imports of a module."
-  (interactive)
-  (let* ((modules (-map 'car (js-injector-get-dependency-alist)))
-         (module  (completing-read "Module: " modules))
-         (import  (completing-read "Import: " (--map (cons it t) (cdr (eval `(assoc ,module modules)))))))
-    (kill-new module)
-    (kill-new import)))
 
 (defun js-injector-import (module &optional prompt-name popup-point)
   "Inject MODULE as dependency.
