@@ -290,6 +290,15 @@ defaults to `-insert-at`."
            (js-injector--import-module-name nil 0 '(lambda (n x list) (-remove-at n list))))
   (js-injector-format))
 
+(defun js-injector-describe-modules ()
+  "List imports of a module."
+  (interactive)
+  (let* ((modules (-map 'car (js-injector-get-dependency-alist)))
+         (module  (completing-read "Module: " modules))
+         (import  (completing-read "Import: " (--map (cons it t) (cdr (eval `(assoc ,module modules)))))))
+    (kill-new module)
+    (kill-new import)))
+
 (defun js-injector-import (module &optional prompt-name popup-point)
   "Inject MODULE as dependency.
 This function will look for MODULE it in the dependncy list.
@@ -441,6 +450,7 @@ on module namings."
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "C-i") 'js-injector-clever-import-module)
     (define-key map (kbd "i") 'js-injector-import-module)
+    (define-key map (kbd "h") 'js-injector-describe-modules)
     (define-key map (kbd "k") 'js-injector-remove-module)
     (define-key map (kbd "u") 'js-injector-update-imports)
     (define-key map (kbd "l") 'js-injector-sort-imports)
