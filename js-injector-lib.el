@@ -110,6 +110,22 @@ If POPUP-POINT is non-nil, use a `popup-menu*` rather than a
   (let ((configs (append (plist-get jpop-project-plist :libs) nil)))
     (mapcar (lambda (config) (cons (plist-get config :id) (plist-get config :dir))) configs)))
 
+;; Git
+(defun js-injector--get-git-files-alist ()
+  (let ((git-repo (locate-dominating-file (buffer-file-name) ".git")))
+
+    (when (not git-repo)
+      (error "[js-injector] File is not part of a git project [%s]"
+             (file-name-directory (buffer-file-name))))
+
+    (let* ((containing-dir (file-name-directory (buffer-file-name)))
+           (git-cmd (format "git ls-files %s -zco --full-name --exclude-standard" git-repo))
+           (files (--map
+                   (expand-file-name (format "%s%s" git-repo it))
+                   (split-string (shell-command-to-string git-cmd) "\0" t))))
+
+      (--map (list (file-name-nondirectory it) it) files))))
+
 (provide 'js-injector-lib)
 ;; Local Variables:
 ;; indent-tabs-mode: nil

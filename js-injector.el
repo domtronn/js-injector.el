@@ -63,7 +63,8 @@
 	"The function to get the current projects file from."
 	:type '(radio
           (const :tag "Get the files from JPoP project" js-injector--get-jpop-files-alist)
-          (const :tag "Get the files from Projectile project" js-injector--get-projectile-files-alist))
+          (const :tag "Get the files from Projectile project" js-injector--get-projectile-files-alist)
+          (const :tag "Get the files using Git Command line" js-injector--get-git-files-alist))
   :group 'js-injector)
 
 (defcustom js-injector-get-requirejs-func '(:files js-injector--get-jpop-requirejs-alist :config js-injector--get-jpop-requirejs-config)
