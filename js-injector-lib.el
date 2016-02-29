@@ -56,7 +56,7 @@ e.g.  `>=0.10.3 ~0.12` etc"
            for file = (car file-alist)
            for locations = (cdr file-alist)
     collect
-		(cons file (--map (file-relative-name it containing-dir) locations))))
+    (cons file (--map (file-relative-name it containing-dir) locations))))
 
 (defun js-injector--read-dependencies (module dependencies &optional popup-point)
   "Prompt user for a dependency from DEPENDENCIES.
@@ -80,7 +80,10 @@ If POPUP-POINT is non-nil, use a `popup-menu*` rather than a
                       (js-injector-get-dependency-alist)
                     (js-injector-get-relative-dependency-alist)))
          (module  (completing-read "Module: " modules))
-         (import  (completing-read "Import: " (--map (cons it t) (cdr (eval `(assoc ,module modules)))))))
+         (imports (--map (cons it t) (cdr (eval `(assoc ,module modules)))))
+         (import  (if (> (length imports) 1)
+                      (completing-read "Import: " imports)
+                    (caar imports))))
     (kill-new module)
     (kill-new import)
     (message "[js-injector] Adding '%s' as '%s' to the kill ring" module import)))
