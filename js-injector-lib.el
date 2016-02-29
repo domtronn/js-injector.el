@@ -82,7 +82,8 @@ If POPUP-POINT is non-nil, use a `popup-menu*` rather than a
          (module  (completing-read "Module: " modules))
          (import  (completing-read "Import: " (--map (cons it t) (cdr (eval `(assoc ,module modules)))))))
     (kill-new module)
-    (kill-new import)))
+    (kill-new import)
+    (message "[js-injector] Adding '%s' as '%s' to the kill ring" module import)))
 
 ;;; 3rd Party helper functions
 ;; projectile
