@@ -94,7 +94,7 @@ By default it will concatenate words, e.g.
 var packageone   = require('package-one'); 
 var packagetwo   = require('package_two'); 
 var packageThree = require('packageThree'); 
-var packageFour  = require('package_Four); 
+var packageFour  = require('package_Four'); 
 ```
 
 ## `require-dependency-at-point` ##
