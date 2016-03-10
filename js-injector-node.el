@@ -187,8 +187,10 @@ This will try to read it from the `package.json` engine field,
 (defun js-injector-node--goto-end-of-import ()
   "Navigate to the end import/require block at the end of the file."
   (js-injector-node--goto-first-import)
-  (while (search-forward-regexp "^\\(let\\|const\\|var\\).*require(.*$" nil t)
-    (forward-char 1)))
+  (while (search-forward-regexp "^\\(let\\|const\\|var\\).*require(.*$" nil t))
+  (when (not (looking-back ";"))
+    (search-forward-regexp ".*;"))
+  (forward-char 1))
 
 ;;; Interactive Injector functions
 
