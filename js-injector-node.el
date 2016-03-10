@@ -54,8 +54,8 @@
 
 
 (defcustom js-injector-node-camelise '(lambda (s) (apply 's-concat (s-split-words s)))
-	"How to sanitise the import names."
-	:type '(radio
+  "How to sanitise the import names."
+  :type '(radio
           (const :tag "Relative to file Name"           (lambda (s) (apply 's-concat (s-split-words s))))
           (const :tag "Upper camel case   e.g. FooBar"  s-upper-camel-case)
           (const :tag "Lower camel case   e.g. fooBar"  s-lower-camel-case)
@@ -231,7 +231,8 @@ If POS is non-nil, goto position before injecting module."
                   module-name qc module qc)))
     (if (not pos)
         (insert (format "%s\n" import))
-      (delete-region (point) (line-end-position))
+      (goto-char pos)
+      (delete-region pos (line-end-position))
       (insert (s-chop-prefix
                (s-trim-left (buffer-substring-no-properties (line-beginning-position) (point)))
                import)))))
@@ -266,10 +267,11 @@ what name they want to import the file as."
                               (ignore-errors (js-injector-node-get-node-module-alist)))))
          (module (completing-read "Import module: " modules))
          (var-decl (js-injector-node--var-decl?))
-         (pos (and var-decl (point))))
+         (pos
+          (or (and (eq (car var-decl) 'var) (point))
+              (min (save-excursion (js-injector-node--goto-end-of-import) (point)) (point)))))
 
-    (save-excursion
-      (js-injector-node-import module pfx (and (eq (car var-decl) 'var) pos)))))
+    (save-excursion (js-injector-node-import module pfx pos))))
 
 ;;;###autoload
 (defun js-injector-node-update-module-at-point (&optional pfx)
