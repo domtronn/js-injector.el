@@ -226,16 +226,17 @@ If POS is non-nil, inject the dependency at position."
 If POS is non-nil, goto position before injecting module."
   (unless pos (js-injector-node--goto-end-of-import))
   (let* ((qc (js-injector--get-quote-char))
+         (version4? (js-injector-node-version>4?))
          (import (format
-                  (if (js-injector-node-version>4?) "const %s = require(%s%s%s);" "var %s = require(%s%s%s);")
-                  module-name qc module qc)))
+                  (if version4? "const %s = require(%s%s%s);" "var %s = require(%s%s%s);")
+                  module-name qc module qc))
+         (partial (replace-regexp-in-string "var" (if version4? "const" "var")
+                   (s-trim-left (buffer-substring-no-properties (line-beginning-position) (point))))))
     (if (not pos)
         (insert (format "%s\n" import))
       (goto-char pos)
       (delete-region pos (line-end-position))
-      (insert (s-chop-prefix
-               (s-trim-left (buffer-substring-no-properties (line-beginning-position) (point)))
-               import)))))
+      (insert (s-chop-prefix partial import)))))
 
 ;;;###autoload
 (defun js-injector-node-import-module-at-point (&optional pfx)
@@ -269,7 +270,7 @@ what name they want to import the file as."
          (var-decl (js-injector-node--var-decl?))
          (pos
           (or (and (eq (car var-decl) 'var) (point))
-              (min (save-excursion (js-injector-node--goto-end-of-import) (point)) (point)))))
+              (when (< (point) (save-excursion (js-injector-node--goto-end-of-import) (point))) (point)))))
 
     (save-excursion (js-injector-node-import module pfx pos))))
 
