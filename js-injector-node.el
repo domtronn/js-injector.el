@@ -86,7 +86,7 @@ a distinct list of both the dev and production dependencies."
 
 (defun js-injector-node-get-node-module-alist ()
   "Get a list of node modules associated with their nice names."
-  (let ((node-modules (js-injector-node-get-node-modules)))
+  (let ((node-modules (js-injector-node-get-node-modules t)))
     (--map (cons it (list (symbol-name it))) node-modules)))
 
 (defun js-injector-node-get-var-declarations ()
@@ -176,6 +176,10 @@ This will try to read it from the `package.json` engine field,
 ;;; Navigation definitions
 ;;  Functions to navigate around the requirejs file
 
+(defun js-injector-node--has-require? ()
+  "Check whether the buffer has a require in it."
+  (not (eq nil (string-match "require" (buffer-string)))))
+
 (defun js-injector-node--goto-first-import ()
   "Navigate to the first import/require in the file."
   (goto-char (point-min))
@@ -186,11 +190,13 @@ This will try to read it from the `package.json` engine field,
 
 (defun js-injector-node--goto-end-of-import ()
   "Navigate to the end import/require block at the end of the file."
-  (js-injector-node--goto-first-import)
-  (while (search-forward-regexp "^\\(let\\|const\\|var\\).*require(.*$" nil t))
-  (when (not (looking-back ";"))
-    (search-forward-regexp ".*;"))
-  (forward-char 1))
+  (if (not (js-injector-node--has-require?))
+      (goto-char (point-min))
+    (js-injector-node--goto-first-import)
+    (while (search-forward-regexp "^\\(let\\|const\\|var\\).*require(.*$" nil t))
+    (when (not (looking-back ";"))
+      (search-forward-regexp ".*;" nil t))
+    (forward-char 1)))
 
 ;;; Interactive Injector functions
 
@@ -271,7 +277,6 @@ what name they want to import the file as."
          (pos
           (or (and (eq (car var-decl) 'var) (point))
               (when (< (point) (save-excursion (js-injector-node--goto-end-of-import) (point))) (point)))))
-
     (save-excursion (js-injector-node-import module pfx pos))))
 
 ;;;###autoload
