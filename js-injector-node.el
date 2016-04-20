@@ -272,7 +272,7 @@ what name they want to import the file as."
   (let* ((modules (-map 'car (append
                               (js-injector-get-relative-dependency-alist)
                               (ignore-errors (js-injector-node-get-node-module-alist)))))
-         (module (completing-read "Import module: " modules))
+         (module (completing-read "Import module: " (--map (cons it it) modules)))
          (var-decl (js-injector-node--var-decl?))
          (pos
           (or (and (eq (car var-decl) 'var) (point))

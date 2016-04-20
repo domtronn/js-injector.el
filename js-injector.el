@@ -339,7 +339,8 @@ When called with a PFX argument, this will prompt for the import name."
   (interactive "P")
   (js-injector--guard)
   (let* ((modules (-map 'car (js-injector-get-dependency-alist)))
-         (module (s-upper-camel-case (completing-read "Import module: " modules))))
+         (module (s-upper-camel-case
+                  (completing-read "Import module: " (--map (cons it it) modules)))))
     (save-excursion (js-injector-import module pfx))))
 
 ;;;###autoload
@@ -348,7 +349,7 @@ When called with a PFX argument, this will prompt for the import name."
   (interactive)
   (js-injector--guard)
   (let* ((modules (js-injector--get-import-function-params-as-list))
-         (module (or m (completing-read "Remove module: " modules))))
+         (module (or m (completing-read "Remove module: " (--map (cons it it) modules)))))
     (save-excursion (js-injector--remove-module module))))
 
 ;;;###autoload
