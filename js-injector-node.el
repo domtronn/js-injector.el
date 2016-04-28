@@ -26,6 +26,7 @@
 
 ;;; Code:
 
+(require 'eslint-reader)
 (require 'dash)
 (require 's)
 
@@ -52,6 +53,9 @@
   :group 'js-injector-node
   :type '(alist :key-type string :value-type string))
 
+(defcustom js-injector-node-require-format "var %s = require('%s');"
+  "The format to use for requiring in a package in node.
+It expects two arguments for formatting, the module name and the module require path.")
 
 (defcustom js-injector-node-camelise '(lambda (s) (apply 's-concat (s-split-words s)))
   "How to sanitise the import names."
@@ -231,18 +235,24 @@ If POS is non-nil, inject the dependency at position."
   "Inject MODULE into the node file as MODULE-NAME.
 If POS is non-nil, goto position before injecting module."
   (unless pos (js-injector-node--goto-end-of-import))
-  (let* ((qc (js-injector--get-quote-char))
-         (version4? (js-injector-node-version>4?))
-         (import (format
-                  (if version4? "const %s = require(%s%s%s);" "var %s = require(%s%s%s);")
-                  module-name qc module qc))
-         (partial (replace-regexp-in-string "var" (if version4? "const" "var")
-                   (s-trim-left (buffer-substring-no-properties (line-beginning-position) (point))))))
+  (let* ((import         (format js-injector-node-require-format module-name module))
+         (import-split   (split-string import " \\|(\\|)"))
+
+         (separators     (--filter (string-match " \\|(\\|)" it)
+                                   (split-string import "")))
+
+         (partial        (s-trim (buffer-substring-no-properties (line-beginning-position) (point))))
+         (partial-length (length (split-string partial " \\|(\\|)"))))
+
     (if (not pos)
         (insert (format "%s\n" import))
       (goto-char pos)
       (delete-region pos (line-end-position))
-      (insert (s-chop-prefix partial import)))))
+      (when (not (looking-back " ")) (insert " "))
+      (insert
+       (s-join "" (-zip-with 'concat
+                             (-drop partial-length import-split)
+                             (-drop partial-length separators)))))))
 
 ;;;###autoload
 (defun js-injector-node-import-module-at-point (&optional pfx)
