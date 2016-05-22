@@ -446,6 +446,7 @@ on module namings."
     (define-key map (kbd "i") 'js-injector-import-module)
     (define-key map (kbd "h") 'js-injector-describe-modules)
     (define-key map (kbd "k") 'js-injector-remove-module)
+    (define-key map (kbd "K") 'js-injector-remove-unused)
     (define-key map (kbd "u") 'js-injector-update-imports)
     (define-key map (kbd "l") 'js-injector-sort-imports)
     (define-key map (kbd "n") 'js-injector-node-import-module)

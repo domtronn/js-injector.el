@@ -53,7 +53,7 @@
   :group 'js-injector-node
   :type '(alist :key-type string :value-type string))
 
-(defcustom js-injector-node-require-format "var %s = require('%s');"
+(defcustom js-injector-node-require-format "const %s = require('%s')"
   "The format to use for requiring in a package in node.
 It expects two arguments for formatting, the module name and the module require path.")
 
