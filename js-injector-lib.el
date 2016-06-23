@@ -91,7 +91,14 @@ If POPUP-POINT is non-nil, use a `popup-menu*` rather than a
 ;;; 3rd Party helper functions
 ;; projectile
 (defun js-injector--get-projectile-files-alist ()
-  (--map (list (file-name-nondirectory it) (format "%s%s" (projectile-project-root) it))
+  (--map (if (and (file-name-directory it)
+                  (string-match "index" (file-name-nondirectory it)))
+
+             (list (format "%s.js" (file-name-nondirectory (substring (file-name-directory it) 0 -1)))
+                   (format "%s%s" (projectile-project-root) (substring (file-name-directory it) 0 -1)))
+
+           (list (file-name-nondirectory it)
+                 (format "%s%s" (projectile-project-root) it)))
          (projectile-current-project-files)))
 (defun js-injector--get-projectile-relative-requirejs-alist ()
   (list (cons (projectile-project-name) (js-injector-relativise (js-injector--get-projectile-files-alist) (buffer-file-name)))))
