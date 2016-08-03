@@ -26,7 +26,6 @@
 
 ;;; Code:
 
-(require 'eslint-reader)
 (require 'dash)
 (require 's)
 
