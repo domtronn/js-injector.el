@@ -106,7 +106,7 @@ If POPUP-POINT is non-nil, use a `popup-menu*` rather than a
   (list (cons (projectile-project-name) "//-projectile/?")))
 
 ;; jpop
-(defun js-injector--get-jpop-files-alist () jpop-file-alist)
+(defun js-injector--get-jpop-files-alist () (when (fbound 'jpop-file-alist) jpop-file-alist))
 (defun js-injector--get-jpop-relative-requirejs-alist ()
   (list (cons jpop-id (js-injector-relativise jpop-file-alist (buffer-file-name)))))
 (defun js-injector--get-jpop-requirejs-alist ()
