@@ -94,7 +94,7 @@ It assossciates each file name to a list of locations of that file."
        (let* ((requirejs-id (car project))
               (requirejs-path (expand-file-name (cdr (assoc requirejs-id requirejs-alist)))))
          (mapc (lambda (file-alist)
-                 (when (equal "js" (file-name-extension (car file-alist)))
+                 (when (string-match "js[x]\\{0,1\\}" (or (file-name-extension (car file-alist)) ""))
                    (let* ((filename (file-name-sans-extension (car file-alist)))
                           (result-match (assoc filename result))
                           (normalised-paths
@@ -121,7 +121,7 @@ the current file."
               for file = (car file-alist)
               for locations = (cdr file-alist)
 							collect
-							(when (string-match "\.js[on]\\{0,2\\}$" file)
+							(when (string-match "\.js[xon]\\{0,2\\}$" file)
 								(cons (file-name-sans-extension file)
 											(--map (file-name-sans-extension
                               (if (string-match "^[a-zA-Z]" (file-relative-name it containing-dir))
@@ -319,7 +319,7 @@ place the popup menu, else use the current value of `point`."
     (unless import-module
       (error "No module named '%s'" module))
 
-    (if (member module (js-injector--get-import-function-params-as-list))
+    (if (member module imported-modules)
         (js-injector--replace-module (or import-name module) (format "%s%s%s" qc import-module qc))
       (js-injector--insert-module (or import-name module) (format "%s%s%s" qc import-module qc)))
     (js-injector-format)))
