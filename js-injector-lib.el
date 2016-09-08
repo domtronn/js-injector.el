@@ -101,7 +101,7 @@ If POPUP-POINT is non-nil, use a `popup-menu*` rather than a
                  (format "%s%s" (projectile-project-root) it)))
          (projectile-current-project-files)))
 (defun js-injector--get-projectile-relative-requirejs-alist ()
-  (list (cons (projectile-project-name) (js-injector-relativise (js-injector--get-projectile-files-alist) (buffer-file-name)))))
+  (list (cons (projectile-project-name) (js-injector-relativise (js-injector--get-projectile-files-alist) (file-name-directory (buffer-file-name))))))
 (defun js-injector--get-projectile-relative-requirejs-config ()
   (list (cons (projectile-project-name) "//-projectile/?")))
 
