@@ -241,13 +241,14 @@ If POS is non-nil, goto position before injecting module."
                                    (split-string import "")))
 
          (partial        (s-trim (buffer-substring-no-properties (line-beginning-position) (point))))
-         (partial-length (length (split-string partial " \\|(\\|)"))))
+         (partial-length (length (--filter (> (length it) 0)
+                                           (split-string partial " \\|(\\|)")))))
 
     (if (not pos)
         (insert (format "%s\n" import))
       (goto-char pos)
       (delete-region pos (line-end-position))
-      (when (not (looking-back " ")) (insert " "))
+      (when (and (> partial-length 0) (not (looking-back " "))) (insert " "))
       (insert
        (s-join "" (-zip-with 'concat
                              (-drop partial-length import-split)
