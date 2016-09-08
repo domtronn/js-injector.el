@@ -325,39 +325,6 @@ any other path in the project."
                 (flush-lines (format "require(.*%s.*)" it)))
            (js-injector-node-get-unused-vars))))
 
-;;;###autoload
-(defun js-injector-node-drag-inject-file (event)
-  "Function to apply mouse EVENT for dragging and dropping."
-  (interactive "e")
-  (deactivate-mark)
-  (mouse-set-point event)
-  (let ((start-buf (window-buffer (posn-window (event-start event))))
-        (start-pos (posn-point (event-start event)))
-
-        (end-buf (window-buffer (posn-window (event-end event))))
-        (end-pos (posn-point (event-end event)))
-
-        file))
-
-  ;; Pull the file from the dired/neotree buffer
-  (with-current-buffer start-buf
-    (goto-char start-pos)
-    (setq file (file-name-nondirectory (dired-filename-at-point))))
-
-  ;; Inject into the current file if it's a JS file and you're
-  ;; injecting a js/json file
-  (when (and (string-match "js[on]\\{0,2\\}$" (file-name-extension file))
-             (string-match "js$" (buffer-file-name end-buf)))
-    (with-current-buffer end-buf
-      (goto-char end-pos)
-      (goto-char (line-end-position))
-
-      ;; Goto new line if you're not on a blank line already
-      (when (not (string-match "^$" (buffer-substring (line-beginning-position) (line-end-position))))
-        (smart-newline))
-
-      (js-injector-node-import (file-name-base file) nil (point)))))
-
 (provide 'js-injector-node)
 ;; Local Variables:
 ;; indent-tabs-mode: nil

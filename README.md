@@ -6,7 +6,7 @@ importing modules relatively and importing in a projects installed
 node modules package.json.
 
 This package is primarily built to work with my own project management
-package, [`jpop.el`](https://github.com/domtronn/jpop.el). 
+package, [`jpop.el`](https://github.com/domtronn/jpop.el).
 
 This can also be used with with
 [`projectile`](https://github.com/bbatsov/projectile), but due to its
@@ -36,7 +36,7 @@ Then enable it in `js2-mode` using
 If you enable `js-injector-minor-mode` you will have access to the following keybindings:
 
 Key Binding | Command & Effect
--------- | --- 
+-------- | ---
 `C-c C-j C-i` | `js-injector-clever-import-module`
  | Try to cleverly import the module based on current point context.
 `C-c C-j i` | `js-injector-import-module`
@@ -55,11 +55,22 @@ Key Binding | Command & Effect
  | Import a module using nodes inline require
  `C-c j n` | `js-injector-node-import-module-at-point`
  | Import the module at point using nodes inline require
- 
+
  Calling most of the above commands with the prefix argument _(`C-u`)_
  will allow you to import the module with a different name, rather
  than using the file name as the import.
- 
+
+### Drag & Drop
+
+You can also drag and drop files from both **Dired** &
+[**Neotree**](https://github.com/jaypei/emacs-neotree). To enable
+this, you will have to add the following to your config;
+
+```elisp
+(define-key neotree-mode-map [drag-mouse-1] 'js-injector-drag-inject-file)
+(define-key dired-mode-map [drag-mouse-1] 'js-injector-drag-inject-file)
+```
+
 # Examples #
 
 ## `js-injector-node-import-module` ##
@@ -81,8 +92,8 @@ including installed node modules, like `express, request,
 package-name`.  Selecting one of the options will expand point into
 
 ```javascript
-var express = require('express'); 
-``` 
+var express = require('express');
+```
 
 Also, pacakges with dashes in their name _(e.g. `package-name` above)_
 will be sanitised according to the custom variable
@@ -91,10 +102,10 @@ will be sanitised according to the custom variable
 By default it will concatenate words, e.g.
 
 ```javascript
-var packageone   = require('package-one'); 
-var packagetwo   = require('package_two'); 
-var packageThree = require('packageThree'); 
-var packageFour  = require('package_Four'); 
+var packageone   = require('package-one');
+var packagetwo   = require('package_two');
+var packageThree = require('packageThree');
+var packageFour  = require('package_Four');
 ```
 
 ## `require-dependency-at-point` ##
@@ -162,4 +173,3 @@ require([
 ...
 })
 ```
-

@@ -440,6 +440,44 @@ on module namings."
     (unless (ignore-errors (js-injector-node-import-module-at-point pfx))
 			(js-injector-node-import-module pfx))))
 
+;;;###autoload
+(defun js-injector-drag-inject-file (event)
+  "Function to apply mouse EVENT for dragging and dropping."
+  (interactive "e")
+  (deactivate-mark)
+  (mouse-set-point event)
+  (let ((start-buf (window-buffer (posn-window (event-start event))))
+        (start-pos (posn-point (event-start event)))
+
+        (end-buf (window-buffer (posn-window (event-end event))))
+        (end-pos (posn-point (event-end event)))
+
+        file)
+
+    ;; Pull the file from the dired/neotree buffer
+    (with-current-buffer start-buf
+      (goto-char start-pos)
+      (setq file (file-name-nondirectory (dired-filename-at-point))))
+
+    ;; Inject into the current file if it's a JS file and you're
+    ;; injecting a js/json file
+    (when (and (string-match "js[on]\\{0,2\\}$" (file-name-extension file))
+               (string-match "js$" (buffer-file-name end-buf)))
+      (with-current-buffer end-buf
+        (goto-char end-pos)
+        (goto-char (line-end-position))
+
+        ;; Goto new line if you're not on a blank line already
+        (when (not (string-match "^$" (buffer-substring (line-beginning-position) (line-end-position))))
+          (smart-newline))
+
+        (if (js-injector--requirejs-file?)
+            (js-injector-import (file-name-base file))
+          (js-injector-node-import (file-name-base file) nil (point)))))))
+
+;; (define-key neotree-mode-map [drag-mouse-1] 'js-injector-drag-inject-file)
+;; (define-key dired-mode-map [drag-mouse-1] 'js-injector-drag-inject-file)
+
 (defvar js-injector-sup-command-map
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "C-i") 'js-injector-clever-import-module)
